@@ -4,5 +4,6 @@ import Vector
 
 data Ray = MkRay { origin :: Vec , dir :: Vec }
 
-type Plane = Ray
+data Plane = MkPlane { point :: Vec , normal :: Vec }
 
+ 
