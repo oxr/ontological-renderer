@@ -1,0 +1,7 @@
+dist-newstyle/
+.cabal-sandbox/
+.stack-work/
+.cache/
+*.hi
+*.o
+.cabal/
