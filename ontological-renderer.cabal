@@ -62,16 +62,16 @@ library
     import:           warnings
 
     -- Modules exported by the library.
-    exposed-modules:  MyLib
+    exposed-modules:  MyLib 
 
     -- Modules included in this library but not exported.
-    -- other-modules:
+    other-modules:    Vector, Scene
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
 
     -- Other library packages from which modules are imported.
-    build-depends:    base ^>=4.18.3.0
+    build-depends:    base ^>=4.18.3.0 
 
     -- Directories containing source files.
     hs-source-dirs:   src
@@ -86,8 +86,8 @@ executable ontological-renderer
     -- .hs or .lhs file containing the Main module.
     main-is:          Main.hs
 
-    -- Modules included in this executable, other than Main.
-    -- other-modules:
+        -- Modules included in this executable, other than Main.
+    other-modules: MyLib, Scene, Vector
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
@@ -99,6 +99,7 @@ executable ontological-renderer
 
     -- Directories containing source files.
     hs-source-dirs:   app
+                    src
 
     -- Base language which the package is written in.
     default-language: Haskell2010

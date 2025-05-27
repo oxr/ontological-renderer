@@ -1,0 +1,6 @@
+cradle:
+  cabal:
+    - path: "./src"
+      component: "lib:ontological-renderer"
+    - path: "./app"
+      component: "exe:ontological-renderer"
