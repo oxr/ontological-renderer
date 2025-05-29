@@ -25,4 +25,12 @@ cosVec :: Vec -> Vec -> Double
 cosVec a b = dot a b  / size a * size b
 
 
+-- matrixes are assumed to be rectangular
+-- lines are vectors
+type Matrix = [Vec] 
+
+transpose :: Matrix -> Matrix
+-- transpose [] = []
+transpose ([] : _) = []
+transpose xss = map head xss : transpose (map tail xss)
 
