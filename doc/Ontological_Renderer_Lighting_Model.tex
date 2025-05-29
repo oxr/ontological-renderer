@@ -1,0 +1,67 @@
+
+\documentclass[12pt]{article}
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{lmodern}
+\usepackage{hyperref}
+
+\title{Ontological Renderer: Lighting Model Refinement}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section*{Lighting Model Requirements}
+
+We want the following shading behavior:
+
+\begin{itemize}
+  \item Front-lit point ($\mathbf{n} \cdot \mathbf{l} = 1$): shade = 1.0
+  \item Terminator ($\mathbf{n} \cdot \mathbf{l} = 0$): shade = 0.25
+  \item Back-lit point ($\mathbf{n} \cdot \mathbf{l} = -1$): shade = 0.5
+\end{itemize}
+
+\section*{Shading Function Form}
+
+We define:
+\[
+x = \mathbf{n} \cdot \mathbf{l}
+\]
+And use a piecewise linear function:
+\[
+\text{shade}(x) = a + b \cdot \max(0, x) + c \cdot \max(0, -x)
+\]
+
+Plug in values:
+
+\begin{align*}
+x = 1: &\quad \text{shade} = a + b = 1.0 \\
+x = 0: &\quad \text{shade} = a = 0.25 \\
+x = -1: &\quad \text{shade} = a + c = 0.5
+\end{align*}
+
+Solving:
+\[
+a = 0.25, \quad b = 0.75, \quad c = 0.25
+\]
+
+\section*{Final Shading Equation}
+
+\[
+\text{shade}(x) = 0.25 + 0.75 \cdot \max(0, x) + 0.25 \cdot \max(0, -x)
+\]
+Or directly in terms of the dot product:
+\[
+\text{shade} = 0.25 + 0.75 \cdot \max(0, \mathbf{n} \cdot \mathbf{l}) + 0.25 \cdot \max(0, -\mathbf{n} \cdot \mathbf{l})
+\]
+
+This ensures:
+\begin{itemize}
+  \item Fully lit side reaches 1.0
+  \item Terminator drops to 0.25
+  \item Back-lit side reflects light up to 0.5
+\end{itemize}
+
+\end{document}

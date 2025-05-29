@@ -1,0 +1,88 @@
+
+\documentclass[12pt]{article}
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{graphicx}
+\usepackage{lmodern}
+\usepackage{hyperref}
+
+\title{Ontological Renderer: First Scene Equations}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section*{Ray--Sphere Intersection}
+
+Given:
+\begin{itemize}
+  \item Ray origin $\mathbf{o} \in \mathbb{R}^3$
+  \item Ray direction $\mathbf{d} \in \mathbb{R}^3$, a unit vector
+  \item Sphere center $\mathbf{c} \in \mathbb{R}^3$
+  \item Radius $r \in \mathbb{R}$
+\end{itemize}
+
+We solve for $t$ in:
+\[
+\|\mathbf{o} + t\mathbf{d} - \mathbf{c}\|^2 = r^2
+\]
+
+This expands to a quadratic in $t$:
+\[
+t^2 + 2b t + c = 0
+\]
+Where:
+\[
+b = \mathbf{d} \cdot (\mathbf{o} - \mathbf{c}), \quad c = \|\mathbf{o} - \mathbf{c}\|^2 - r^2
+\]
+
+Discriminant:
+\[
+\Delta = b^2 - c
+\]
+
+\begin{itemize}
+  \item If $\Delta < 0$: no intersection
+  \item If $\Delta = 0$: tangent point
+  \item If $\Delta > 0$: two intersections $\Rightarrow$ take the smallest positive $t$
+\end{itemize}
+
+Intersection point:
+\[
+\mathbf{p} = \mathbf{o} + t\mathbf{d}
+\]
+
+\section*{Normal at Point of Intersection}
+
+\[
+\mathbf{n} = \frac{\mathbf{p} - \mathbf{c}}{\|\mathbf{p} - \mathbf{c}\|}
+\]
+
+\section*{Lambertian Diffuse Shading}
+
+Let $\mathbf{l}$ be the light direction (unit vector, pointing toward light source).
+
+Shading factor:
+\[
+\text{shade} = \max(0, \mathbf{n} \cdot \mathbf{l})
+\]
+
+\section*{Final Pixel Value (with 50\% Gray Background)}
+
+\[
+\text{pixel} = 0.5 + 0.5 \cdot \max(0, \mathbf{n} \cdot \mathbf{l})
+\]
+
+This ensures:
+\begin{itemize}
+  \item Background = 0.5
+  \item Shadow side = 0.5
+  \item Fully lit = 1.0
+  \item Outside the sphere = exactly 0.5
+\end{itemize}
+
+\noindent
+This setup produces a minimal, closed rendering. A world where every value is accounted for. No gesture. No myth.
+\end{document}
