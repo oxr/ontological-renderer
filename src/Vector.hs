@@ -1,12 +1,14 @@
 module Vector where
 
+
 type Vec = [Double]
 
 dot :: Vec -> Vec -> Double
 dot x y = sum (zipWith (*) x y)
 
-( |.| ) :: Vec -> Vec -> Double
-( |.| ) = dot
+( <.> ) :: Vec -> Vec -> Double
+( <.> ) = dot
+infixl 7 <.>
 
 
 size :: Vec -> Double
@@ -19,9 +21,9 @@ cross :: Num a => [a] -> [a] -> [a]
 cross [a1,a2,a3] [b1,b2,b3] = [a2*b3 - a3*b2, a3*b1-a1*b3,a1*b2-a2*b1]
 cross _ _                   = []
 
-(|*|) :: Num a => [a] -> [a] -> [a]
-(|*|) = cross
-
+(<*>) :: Num a => [a] -> [a] -> [a]
+(<*>) = cross
+infixl 7 <*>
 
 normal :: [Double] -> [Double] -> [Double]
 normal a b = normalize (cross a b)
@@ -46,18 +48,28 @@ transpose xss = map head xss : transpose (map tail xss)
 vecAdd :: Vec -> Vec -> Vec
 vecAdd = zipWith (+)
 
-(|+|) :: Vec -> Vec -> Vec
-(|+|) = vecAdd
+(<+>) :: Vec -> Vec -> Vec
+(<+>) = vecAdd
+
+infixl 6 <+>
 
 -- scalar multiplication
 scaMult :: Num b => b -> [b] -> [b]
 scaMult s = map (* s)
 
-(|.*|) :: Num b => b -> [b] -> [b]
-(|.*|) = scaMult
+(<^*>) :: Num b => b -> [b] -> [b]
+(<^*>) = scaMult
+
+(<*^>) :: Num b => [b] -> b -> [b]
+(<*^>) = flip scaMult 
+
+infixl 9 <*^>, <^*>
+
 
 vecNeg :: Vec -> Vec
-vecNeg = ((-1) |.*| )
+vecNeg = ((-1) <^*> )
 
-(|-|) :: Vec -> Vec -> Vec
-u |-| v = u |+| vecNeg v
+(<->) :: Vec -> Vec -> Vec
+u <-> v = u <+> vecNeg v
+
+infixl 6 <->
