@@ -57,7 +57,6 @@ scaMult s = map (* s)
 (|.*|) = scaMult
 
 vecNeg :: Vec -> Vec
-
 vecNeg = ((-1) |.*| )
 
 (|-|) :: Vec -> Vec -> Vec
