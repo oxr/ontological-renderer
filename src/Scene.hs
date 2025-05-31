@@ -153,10 +153,16 @@ showScene s l = map showScanline
                                     
 
 
-renderScene :: [Char] -> [[Double]] -> [String]
-renderScene chars = map (concatMap (twice .(chars !!) . levels) )
-                where twice :: a -> [a]
-                      twice x = [x,x]
+renderScene :: [Char] -> (Char -> [Char]) ->  [[Double]] -> [String]
+renderScene chars twice = map (concatMap (twice .(chars !!) . levels) )
+
+twice :: a -> [a]
+twice x = [x,x]
+spaced :: Char -> [Char]
+spaced x = [x , ' ']
+single :: a -> [a]
+single x = [x]
+
 
 
 levels :: Double -> Int
