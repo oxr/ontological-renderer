@@ -178,3 +178,14 @@ charShades = "@%#*:+-,. "
 
 frontOn :: Light
 frontOn = Light [0,0,1]
+
+
+-- , Sphere [0, 15,150] 15
+
+twoBalls :: Scene
+twoBalls = Scene { objects = [Sphere [-10, 0, 100] 25, Sphere [10,0,120] 25, Plane (Ray [0,0,1000] [0,0,-1])]}
+topLeftFront :: Light
+topLeftFront = Light { mainSource = normalize [1, 1, 1] } 
+
+twoBalls2 :: Scene
+twoBalls2 = Scene { objects = [Sphere [-10, 0, 100] 25, Sphere [10,0,120] 15]}
