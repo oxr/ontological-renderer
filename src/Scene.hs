@@ -101,7 +101,7 @@ rays f dx dy = [ [ mkRay x y | x <- [-dx .. dx] ] | y <- [-dy .. dy] ]
 
 -- one test scene
 scene1 :: Scene
-scene1 = Scene { objects = [Sphere [0, 0, 100] 10]}
+scene1 = Scene { objects = [Sphere [0, 0, 50] 10]}
 light1 :: Light
 light1 = Light { mainSource = normalize [- 1, - 1, -1] }
 
@@ -174,7 +174,12 @@ levels x | x < -0.8 = 0
 
 
 charShades :: String
-charShades = "@%#*:+-,. "
+charShades = "@%|*+=-,. "
+
+charNumbers :: String
+charNumbers = "0123456789"
+
+
 
 frontOn :: Light
 frontOn = Light [0,0,1]
