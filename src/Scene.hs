@@ -106,6 +106,17 @@ take1st :: [a] -> [a]
 take1st [] = []
 take1st (h:_) = [h]
 
+-- an alternative version of minimum, with Maybe
+minimum :: (a -> a -> Bool) -> [a] -> Maybe a 
+minimum comp = foldr (\a b -> case b of Nothing -> Just a ; Just b' -> if a `comp` b' then Just a else Just b') Nothing
+
+minRay :: [Ray] -> Maybe Ray
+minRay = Scene.minimum compare
+          where compare (Ray [_,_,z1] _ ) (Ray [_,_,z2] _) = z1 < z2 
+                compare _ _ = False
+
+
+
 -- now calculate the light
 showScene :: Scene -> [[Ray]] -> [[Double]]
 showScene s rss = let objectIntersectors = map intersect (objects s)
@@ -113,3 +124,5 @@ showScene s rss = let objectIntersectors = map intersect (objects s)
                    in map (map (lightingModel s)) intersects
  
                                     
+
+
