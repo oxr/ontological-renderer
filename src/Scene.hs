@@ -3,6 +3,7 @@ module Scene where
 import Vector
 
 
+
 data Ray = Ray Vec Vec 
             deriving Show
 
@@ -30,7 +31,7 @@ newtype Light = Light { mainSource :: Vec }
 
 
 -- at this point light is just a direction from an infinite distance
-data Scene = Scene { objects:: [Object] , light :: Light }  deriving Show
+newtype Scene = Scene { objects:: [Object]  }  deriving Show
 
 
 -- intersection of Ray and Object gives a point a normal, ie. a Ray
@@ -80,8 +81,8 @@ intersectPlane o n (Ray ro rd)
 -- for each intersection which is a collection of Rays, light model calculates
 -- in a given scene, for a given point and direction the 
 -- assumptions: Ray is normal , Light vector is normal
-lightingModel :: Scene -> Ray -> Double
-lightingModel (Scene _ (Light ms)) = lambert (vecNeg ms )
+lightingModel :: Light -> Ray -> Double
+lightingModel (Light ms) = lambert (vecNeg ms )
                 where 
                     lambert :: Vec -> Ray -> Double
                     lambert v (Ray _ d)  = v `dot` d
@@ -100,29 +101,80 @@ rays f dx dy = [ [ mkRay x y | x <- [-dx .. dx] ] | y <- [-dy .. dy] ]
 
 -- one test scene
 scene1 :: Scene
-scene1 = Scene { objects = [Sphere [0, 0, 100] 25, Plane (Ray [1000,1000,1000] [0,0,-1])], light = Light { mainSource = normalize [- 1, - 1, 1] } }
+scene1 = Scene { objects = [Sphere [0, 0, 100] 10]}
+light1 :: Light
+light1 = Light { mainSource = normalize [- 1, - 1, -1] }
+
+topDown :: Light
+topDown = Light [0,-1,0]
+
+
+
+
+scene2 :: Scene
+scene2 = Scene { objects = [Sphere [0, 0, 100] 10, Plane (Ray [0,0,1000] [0,0,-1])]}
+light2 :: Light
+light2 = Light { mainSource = normalize [- 1, - 1, 1] } 
+
 
 take1st :: [a] -> [a]
 take1st [] = []
 take1st (h:_) = [h]
 
--- an alternative version of minimum, with Maybe
-minimum :: (a -> a -> Bool) -> [a] -> Maybe a 
-minimum comp = foldr (\a b -> case b of Nothing -> Just a ; Just b' -> if a `comp` b' then Just a else Just b') Nothing
+-- an alternative version of minimum, with Maybe, instead of exeption
+minimum :: (a -> a -> Bool) -> [a] -> [a] 
+minimum comp = foldr (\a b -> case b of [] -> [a] ; b':_ -> if a `comp` b' then [a] else [b']) []
 
-minRay :: [Ray] -> Maybe Ray
-minRay = Scene.minimum compare
-          where compare (Ray [_,_,z1] _ ) (Ray [_,_,z2] _) = z1 < z2 
-                compare _ _ = False
+minRay :: [Ray] -> [Ray]
+minRay = Scene.minimum comp
+          where comp (Ray [_,_,z1] _ ) (Ray [_,_,z2] _) = z1 < z2 
+                comp _ _ = False
 
 
 
 -- now calculate the light
-showScene :: Scene -> [[Ray]] -> [[Double]]
-showScene s rss = let objectIntersectors = map intersect (objects s)
+showScene :: Scene -> Light -> [[Ray]] -> [[Double]]
+showScene s l = map showScanline 
+                where 
+                showScanline  = map showRay
+                showRay :: Ray -> Double
+                showRay r = let objectIntersects = map (`intersect`  r) (objects s)
+                                flatOI = concat objectIntersects
+                                singleIO = minRay flatOI 
+                            in case singleIO of [] -> 0 ; r' : _ -> lightingModel l r'
+
+                                                   
+
+{-
+    let objectIntersectors = map intersect (objects s)
                       intersects = [ concatMap take1st [ oi r | oi <- objectIntersectors ,  r <- rs] | rs <- rss ]
                    in map (map (lightingModel s)) intersects
- 
+ -}
                                     
 
 
+renderScene :: [Char] -> [[Double]] -> [String]
+renderScene chars = map (concatMap (twice .(chars !!) . levels) )
+                where twice :: a -> [a]
+                      twice x = [x,x]
+
+
+levels :: Double -> Int
+levels x | x < -0.8 = 0
+         | x < -0.6 = 1
+         | x < -0.4 = 2
+         | x < -0.2 = 3
+         | x < 0    = 4
+         | x < 0.2  = 5 
+         | x < 0.4  = 6
+         | x < 0.6  = 7
+         | x < 0.8   = 8
+         | otherwise = 9
+
+
+
+charShades :: String
+charShades = "@%#*:+-,. "
+
+frontOn :: Light
+frontOn = Light [0,0,1]
