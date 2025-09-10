@@ -1,4 +1,4 @@
-module Scene where
+module Scene(Object (..), Ray (..), Light(..), Scene(..), renderScene , twice, spaced, single, showScene, rays, charShades, charNumbers ) where
 
 import Vector
 
@@ -13,12 +13,8 @@ origin (Ray v _ )= v
 direction :: Ray -> Vec
 direction (Ray _ v) = v
 
-
 mkNormalRay :: Vec -> Vec -> Ray
 mkNormalRay o d = Ray o (normalize d)
-
-
-
 
 data Object = Sphere Vec Double
             | Plane Ray
@@ -27,14 +23,10 @@ data Object = Sphere Vec Double
 newtype Light = Light { mainSource :: Vec }
           deriving Show
 
-
-
-
 -- at this point light is just a direction from an infinite distance
 newtype Scene = Scene { objects:: [Object]  }  deriving Show
 
-
--- intersection of Ray and Object gives a point a normal, ie. a Ray
+-- intersection of Ray and Object gives a point and a normal, ie. a Ray
 intersect :: Object -> Ray ->  [Ray]
 intersect (Sphere c d)        = intersectSphere c d
 intersect (Plane (Ray o n))   = intersectPlane o n
@@ -94,54 +86,53 @@ lightingModel (Light ms) = lambert (vecNeg ms )
 
 -- from focal length, x half resolution, y half resolution, give me all rays
 -- a matrix of rays
-rays :: Double -> Double -> Double -> [[Ray]]
+rays :: Int -> Int -> Int -> [[Ray]]
 rays f dx dy = [ [ mkRay x y | x <- [-dx .. dx] ] | y <- [-dy .. dy] ]
-                where mkRay x y = Ray [0,0,0] [x,y,f]
+                where mkRay x y = Ray (V 0 0 0) (V (fromIntegral x) (fromIntegral y) (fromIntegral f))
 
 
 -- one test scene
 scene1 :: Scene
-scene1 = Scene { objects = [Sphere [0, 0, 50] 10]}
+scene1 = Scene { objects = [Sphere (V 0 0 50) 10]}
 light1 :: Light
-light1 = Light { mainSource = normalize [- 1, - 1, -1] }
+light1 = Light { mainSource = normalize (V (- 1) (- 1) (-1)) }
 
 topDown :: Light
-topDown = Light [0,-1,0]
+topDown = Light (V 0 (-1) 0)
 
 
 
 
 scene2 :: Scene
-scene2 = Scene { objects = [Sphere [0, 0, 100] 10, Plane (Ray [0,0,1000] [0,0,-1])]}
+scene2 = Scene { objects = [Sphere (V 0 0 100) 10, Plane (Ray (V 0 0 1000) (V 0 0 (-1)))]}
 light2 :: Light
-light2 = Light { mainSource = normalize [- 1, - 1, 1] } 
+light2 = Light { mainSource = normalize (V (- 1) (- 1) 1) } 
 
 
 take1st :: [a] -> [a]
 take1st [] = []
 take1st (h:_) = [h]
 
--- an alternative version of minimum, with Maybe, instead of exeption
+-- an alternative version of minimum, with Maybe, instead of exception
 minimum :: (a -> a -> Bool) -> [a] -> [a] 
 minimum comp = foldr (\a b -> case b of [] -> [a] ; b':_ -> if a `comp` b' then [a] else [b']) []
 
 minRay :: [Ray] -> [Ray]
 minRay = Scene.minimum comp
-          where comp (Ray [_,_,z1] _ ) (Ray [_,_,z2] _) = z1 < z2 
-                comp _ _ = False
-
+          where comp (Ray (V _ _ z1) _ ) (Ray (V _ _ z2) _) = z1 < z2 
 
 
 -- now calculate the light
 showScene :: Scene -> Light -> [[Ray]] -> [[Double]]
 showScene s l = map showScanline 
                 where 
-                showScanline  = map showRay
-                showRay :: Ray -> Double
-                showRay r = let objectIntersects = map (`intersect`  r) (objects s)
-                                flatOI = concat objectIntersects
-                                singleIO = minRay flatOI 
-                            in case singleIO of [] -> 0 ; r' : _ -> lightingModel l r'
+                showScanline  = map (showRay s l)
+
+showRay :: Scene -> Light -> Ray -> Double
+showRay s l r = let objectIntersects = map (`intersect`  r) (objects s)
+                    flatOI = concat objectIntersects
+                    singleIO = minRay flatOI 
+                in case singleIO of [] -> 0 ; r' : _ -> lightingModel l r'
 
                                                    
 
@@ -154,7 +145,7 @@ showScene s l = map showScanline
 
 
 renderScene :: [Char] -> (Char -> [Char]) ->  [[Double]] -> [String]
-renderScene chars twice = map (concatMap (twice .(chars !!) . levels) )
+renderScene chars tw = map (concatMap (tw .(chars !!) . levels) )
 
 twice :: a -> [a]
 twice x = [x,x]
@@ -180,7 +171,7 @@ levels x | x < -0.8 = 0
 
 
 charShades :: String
-charShades = "@%|*+=-,. "
+charShades = "#@%±*~-,. "
 
 charNumbers :: String
 charNumbers = "0123456789"
@@ -188,15 +179,15 @@ charNumbers = "0123456789"
 
 
 frontOn :: Light
-frontOn = Light [0,0,1]
+frontOn = Light (V 0 0 1)
 
 
 -- , Sphere [0, 15,150] 15
 
 twoBalls :: Scene
-twoBalls = Scene { objects = [Sphere [-10, 0, 100] 25, Sphere [10,0,120] 25, Plane (Ray [0,0,1000] [0,0,-1])]}
+twoBalls = Scene { objects = [Sphere (V (-10) 0 100) 25, Sphere (V 10 0 120) 25, Plane (Ray (V 0 0 1000) (V 0 0 (-1)))]}
 topLeftFront :: Light
-topLeftFront = Light { mainSource = normalize [1, 1, 1] } 
+topLeftFront = Light { mainSource = normalize (V 1 1 1) } 
 
 twoBalls2 :: Scene
-twoBalls2 = Scene { objects = [Sphere [-10, 0, 100] 25, Sphere [10,0,120] 15]}
+twoBalls2 = Scene { objects = [Sphere (V (-10) 0 100) 25, Sphere (V 10 0 120) 15]}

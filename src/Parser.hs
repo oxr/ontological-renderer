@@ -1,12 +1,39 @@
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Parser where
+module Parser (Parser(..), 
+result, 
+zero, 
+item, 
+bind, 
+sat, 
+char, 
+digit, 
+lower, 
+upper, 
+(-|-), (-/-), 
+letter, 
+alphanum, 
+word, 
+string, 
+many, 
+ident, 
+(-:-), 
+many1, 
+nat, 
+int, 
+pair, 
+triple, 
+list, 
+skip, double ) where
 import Data.Char (isDigit, isLower, isUpper, ord)
+import Data.Ratio((%))
+import Data.List.NonEmpty (unfoldr)
 
 newtype Parser a = Parser {run :: String -> [(a,String)]}
 
 instance Functor Parser where
+    fmap :: (a -> b) -> Parser a -> Parser b
     fmap f (Parser pa) = Parser (\s -> [ (f a , s') | (a , s') <- pa s])
 
 instance Applicative Parser where
@@ -111,8 +138,34 @@ triple :: Parser a -> Parser b -> Parser c -> Parser (a,b,c)
 triple pa pb pc = do { _ <- char '(' ; a <- pa ; _ <- char ',' ; b <- pb ; _ <- char ',' ; c <- pc ; _ <- char ')' ; return (a,b,c) }
 
              
+maybeP :: a -> Parser a -> Parser a
+maybeP a pa = return a -|- pa
+
 
 list :: Parser a -> Parser [a]             
-list pa = do { _ <- char '['; a <- pa ; c <- item ; as <- tail pa ; _ <- char ']'; return (a:as)}
-            where tail :: Parser a -> Parser [a]
-                  tail pa = do { _ <- char ',' ; x <- pa ; xs <- tail pa; return (x : xs)}  
+list pa = do 
+            _ <- char '['
+            as <- maybeP [] (items pa)
+            _ <- char ']'
+            return as 
+         
+    where 
+        items :: Parser a -> Parser [a]
+        items pa = do 
+                    a <- pa
+                    as <- maybeP [] ( do { _ <- char ',' ;  items pa } )
+                    return (a : as)
+
+skip :: Parser a -> Parser b -> Parser b
+skip pa pb = do 
+                _ <- pa
+                pb
+
+fromDecimal :: Int -> Int  -> Double
+fromDecimal x y = (fromIntegral x) + ((fromIntegral y) / (10** (fromIntegral $ numdigits y ) ))
+
+numdigits :: Int -> Int 
+numdigits x' = if (x' == 0) then 0 else 1 + (numdigits (x' `div` 10))
+
+double :: Parser Double
+double = do { x<- int ; return (fromIntegral x) } -|- do { x <- int ; _ <- char '.' ; y <- int ; return (fromDecimal x y )}                

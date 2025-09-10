@@ -62,16 +62,16 @@ library
     import:           warnings
 
     -- Modules exported by the library.
-    exposed-modules:  MyLib 
+    exposed-modules:  Parser, Scene
 
     -- Modules included in this library but not exported.
-    other-modules:    Vector, Scene
+    other-modules:    
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
 
     -- Other library packages from which modules are imported.
-    build-depends:    base ^>=4.18.3.0 
+    build-depends:    base >= 4.18 && < 4.22
 
     -- Directories containing source files.
     hs-source-dirs:   src
@@ -87,14 +87,14 @@ executable ontological-renderer
     main-is:          Main.hs
 
         -- Modules included in this executable, other than Main.
-    other-modules: MyLib, Scene, Vector, CLParser
+    other-modules: MyLib, Scene, Vector, Parser
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
 
     -- Other library packages from which modules are imported.
     build-depends:
-        base ^>=4.18.3.0,
+        base >= 4.18 && < 4.22,
         ontological-renderer
 
     -- Directories containing source files.
