@@ -24,7 +24,7 @@ instance Functor Vec_ where
 
 
 zipWithVec :: (a -> b -> c) -> Vec_ a -> Vec_ b -> Vec_ c
-zipWithVec f (V a b c) (V a' b' c')  = (V (f a a') (f b b') (f c c'))
+zipWithVec f (V a b c) (V a' b' c')  = V (f a a') (f b b') (f c c')
 
 zipV :: Vec_ a -> Vec_ b -> Vec_ (a,b)
 zipV = zipWithVec (,)

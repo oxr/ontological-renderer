@@ -1,4 +1,11 @@
-module Scene(Object (..), Ray (..), Light(..), Scene(..), renderScene , twice, spaced, single, showScene, rays, charShades, charNumbers ) where
+module Scene(
+  Object (..), 
+  Ray (..), 
+  Light(..), 
+  Scene(..), 
+  Cam(..),
+  renderScene, 
+  twice, spaced, single, showScene, rays, charShades, charNumbers ) where
 
 import Vector
 
@@ -20,11 +27,23 @@ data Object = Sphere Vec Double
             | Plane Ray
           deriving Show
 
-newtype Light = Light { mainSource :: Vec }
+newtype Light = Light { mainSource :: Vec }     
           deriving Show
 
 -- at this point light is just a direction from an infinite distance
 newtype Scene = Scene { objects:: [Object]  }  deriving Show
+
+data Cam = Cam { dx :: Int , dy :: Int, f :: Int}
+
+{-
+multScn :: Double -> Scene -> Scene
+multScn n (Scene os) = Scene { objects = map (multO n) os }
+
+multO :: Double -> Object -> Object
+multO n (Sphere v r) = Sphere (map (*n) v) (r * n)
+multO n (Plane (Ray u v)) = Plane (Ray (map (*n) u) (map (*n) v))
+
+-}
 
 -- intersection of Ray and Object gives a point and a normal, ie. a Ray
 intersect :: Object -> Ray ->  [Ray]
@@ -73,8 +92,8 @@ intersectPlane o n (Ray ro rd)
 -- for each intersection which is a collection of Rays, light model calculates
 -- in a given scene, for a given point and direction the 
 -- assumptions: Ray is normal , Light vector is normal
-lightingModel :: Light -> Ray -> Double
-lightingModel (Light ms) = lambert (vecNeg ms )
+lightingModel :: Scene -> Light -> Ray -> Double
+lightingModel _ (Light ms) = lambert (vecNeg ms)
                 where 
                     lambert :: Vec -> Ray -> Double
                     lambert v (Ray _ d)  = v `dot` d
@@ -89,24 +108,6 @@ lightingModel (Light ms) = lambert (vecNeg ms )
 rays :: Int -> Int -> Int -> [[Ray]]
 rays f dx dy = [ [ mkRay x y | x <- [-dx .. dx] ] | y <- [-dy .. dy] ]
                 where mkRay x y = Ray (V 0 0 0) (V (fromIntegral x) (fromIntegral y) (fromIntegral f))
-
-
--- one test scene
-scene1 :: Scene
-scene1 = Scene { objects = [Sphere (V 0 0 50) 10]}
-light1 :: Light
-light1 = Light { mainSource = normalize (V (- 1) (- 1) (-1)) }
-
-topDown :: Light
-topDown = Light (V 0 (-1) 0)
-
-
-
-
-scene2 :: Scene
-scene2 = Scene { objects = [Sphere (V 0 0 100) 10, Plane (Ray (V 0 0 1000) (V 0 0 (-1)))]}
-light2 :: Light
-light2 = Light { mainSource = normalize (V (- 1) (- 1) 1) } 
 
 
 take1st :: [a] -> [a]
@@ -132,9 +133,7 @@ showRay :: Scene -> Light -> Ray -> Double
 showRay s l r = let objectIntersects = map (`intersect`  r) (objects s)
                     flatOI = concat objectIntersects
                     singleIO = minRay flatOI 
-                in case singleIO of [] -> 0 ; r' : _ -> lightingModel l r'
-
-                                                   
+                in case singleIO of [] -> 0 ; r' : _ -> lightingModel s l r'
 
 {-
     let objectIntersectors = map intersect (objects s)
@@ -157,15 +156,15 @@ single x = [x]
 
 
 levels :: Double -> Int
-levels x | x < -0.8 = 0
-         | x < -0.6 = 1
-         | x < -0.4 = 2
+levels x | x < -0.9 = 0
+         | x < -0.75 = 1
+         | x < -0.5 = 2
          | x < -0.2 = 3
          | x < 0    = 4
          | x < 0.2  = 5 
-         | x < 0.4  = 6
-         | x < 0.6  = 7
-         | x < 0.8   = 8
+         | x < 0.5  = 6
+         | x < 0.7  = 7
+         | x < 0.9   = 8
          | otherwise = 9
 
 
@@ -178,16 +177,4 @@ charNumbers = "0123456789"
 
 
 
-frontOn :: Light
-frontOn = Light (V 0 0 1)
 
-
--- , Sphere [0, 15,150] 15
-
-twoBalls :: Scene
-twoBalls = Scene { objects = [Sphere (V (-10) 0 100) 25, Sphere (V 10 0 120) 25, Plane (Ray (V 0 0 1000) (V 0 0 (-1)))]}
-topLeftFront :: Light
-topLeftFront = Light { mainSource = normalize (V 1 1 1) } 
-
-twoBalls2 :: Scene
-twoBalls2 = Scene { objects = [Sphere (V (-10) 0 100) 25, Sphere (V 10 0 120) 15]}

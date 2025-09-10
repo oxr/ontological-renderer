@@ -11,7 +11,7 @@ char,
 digit, 
 lower, 
 upper, 
-(-|-), (-/-), 
+(-|-), (-++-), 
 letter, 
 alphanum, 
 word, 
@@ -25,8 +25,9 @@ int,
 pair, 
 triple, 
 list, 
-skip, double ) where
+double ) where
 import Data.Char (isDigit, isLower, isUpper, ord)
+import GHC.Float (int2Double)
 import Data.Ratio((%))
 import Data.List.NonEmpty (unfoldr)
 
@@ -43,13 +44,9 @@ instance Applicative Parser where
                    a' = run a
                in Parser (\s ->  [ (f'' a'' , s'') | (f'', s') <- f' s , (a'' , s'') <- a' s' ])
 
-
-
-
 instance Monad Parser where
     (>>=) :: Parser a -> (a -> Parser b) -> Parser b
     m >>= n = Parser (\s -> [ (b,s'') | (a,s') <- run m s , (b , s'') <- run (n a) s'])
-
 
 result :: a -> Parser a
 result = return
@@ -62,7 +59,6 @@ item = Parser (\case
                         [] -> [] 
                         (x :xs ) -> [(x,xs)])
 
-
 bind      :: Parser a -> (a -> Parser b) -> Parser b
 bind = (>>=)
 
@@ -70,7 +66,6 @@ sat  :: (Char -> Bool) -> Parser Char
 sat p = do 
          x <- item 
          if p x then return x else zero
-
 
 char :: Char -> Parser Char
 char c = sat (== c)
@@ -87,8 +82,8 @@ upper = sat isUpper
 (-|-) :: Parser a -> Parser a -> Parser a
 (Parser p) -|- (Parser q) = Parser (\s -> p s ++ q s)
 
-(-/-) :: Parser [a] -> Parser [a] -> Parser [a]
-p -/- q = do 
+(-++-) :: Parser [a] -> Parser [a] -> Parser [a]
+p -++- q = do 
             xs <- p
             ys <- q
             return (xs ++ ys)
@@ -103,14 +98,12 @@ word :: Parser String
 word = neWord -|- return ""
         where neWord = do c <- letter ; cs <- word ; return (c:cs)
 
-
 string       :: String -> Parser String
 string ""     = return ""
 string (x:xs) = do _ <- char x ; _ <- string xs ; return (x:xs)
 
 many :: Parser a -> Parser [a]
 many p = (do x <- p ; xs <- many p ; return (x:xs)) -|- return []
-
 
 ident :: Parser String
 ident = do { x <- lower ; xs <- many alphanum ; return (x:xs) }
@@ -121,11 +114,11 @@ pa -:- pas = do { a <- pa ; as <- pas ; return (a:as)}
 many1 :: Parser a -> Parser [a]
 many1 p = p -:- many p
 
+eval :: String -> Int 
+eval = foldl (\ n c -> 10*n + Data.Char.ord c - Data.Char.ord '0') 0 
 
 nat :: Parser Int
 nat = do { ds <- many1 digit ; return (eval ds)} 
-    where   eval :: String -> Int 
-            eval = foldl (\ n c -> 10*n + Data.Char.ord c - Data.Char.ord '0') 0 
 
 int :: Parser Int
 int = do { _ <- char '-' ; n <- nat ; return (-n)} -|- nat
@@ -138,34 +131,60 @@ triple :: Parser a -> Parser b -> Parser c -> Parser (a,b,c)
 triple pa pb pc = do { _ <- char '(' ; a <- pa ; _ <- char ',' ; b <- pb ; _ <- char ',' ; c <- pc ; _ <- char ')' ; return (a,b,c) }
 
              
-maybeP :: a -> Parser a -> Parser a
-maybeP a pa = return a -|- pa
+dropSecond :: Parser a -> Parser b -> Parser a
+dropSecond pa pb = do { a<- pa ; _ <- pb; return a}
 
-
-list :: Parser a -> Parser [a]             
-list pa = do 
-            _ <- char '['
-            as <- maybeP [] (items pa)
-            _ <- char ']'
-            return as 
-         
-    where 
-        items :: Parser a -> Parser [a]
-        items pa = do 
-                    a <- pa
-                    as <- maybeP [] ( do { _ <- char ',' ;  items pa } )
-                    return (a : as)
-
-skip :: Parser a -> Parser b -> Parser b
-skip pa pb = do 
-                _ <- pa
-                pb
-
-fromDecimal :: Int -> Int  -> Double
-fromDecimal x y = (fromIntegral x) + ((fromIntegral y) / (10** (fromIntegral $ numdigits y ) ))
-
-numdigits :: Int -> Int 
-numdigits x' = if (x' == 0) then 0 else 1 + (numdigits (x' `div` 10))
+dropFirst :: Parser a -> Parser b -> Parser b
+dropFirst pa pb = do { _ <- pa ; pb }
 
 double :: Parser Double
-double = do { x<- int ; return (fromIntegral x) } -|- do { x <- int ; _ <- char '.' ; y <- int ; return (fromDecimal x y )}                
+double = int >>= \i -> return (int2Double i) -|- do 
+           _ <- char '.'
+           fracd <- many digit
+           return (int2Double i + (int2Double(eval fracd) / 10^length fracd))
+
+
+
+
+-- list is like many , except that we have all the other syntax around
+-- with the commas, it is not the case that we simple repeat
+
+lift :: (a->b) -> Parser a -> Parser b 
+lift f pa = f <$> pa
+
+
+
+singleton :: Parser a -> Parser [a]
+singleton =  lift return  
+
+
+
+neList :: Parser a -> Parser [a]             
+neList pa = do
+            _   <- char '['
+            a   <- pa 
+            as  <- many (char ',' `dropFirst` pa)
+            _   <- char ']'
+            return (a:as)
+            
+
+eList ::  Parser [a]
+eList = do 
+            _ <- char '['
+            _ <- many (char ' ')
+            _ <- char ']'
+            return []
+
+list :: Parser a -> Parser [a]
+list pa = eList -|- neList pa
+
+-- parser for lists of an exact length
+parsen :: Int -> Parser a -> Parser [a]
+parsen n p = do _ <- char '[' ; l <- parseInside n p ; _ <- char ']' ; return l 
+              where 
+                parseInside :: Int -> Parser a -> Parser [a]
+                parseInside n p | n <= 0  = return []
+                                | n == 1  = do a<- p ; return [a]
+                                | n > 1   = do a <- p ; _ <- char ',' ; as <- parseInside  (n-1) p ; return (a:as)
+
+
