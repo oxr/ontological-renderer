@@ -50,9 +50,6 @@ intersect :: Object -> Ray ->  [Ray]
 intersect (Sphere c d)        = intersectSphere c d
 intersect (Plane (Ray o n))   = intersectPlane o n
 
-sq :: Num a => a -> a
-sq x = x * x
-
 intersectSphere :: Vec -> Double -> Ray ->  [Ray]
 intersectSphere c r (Ray o d) =
     let
@@ -152,8 +149,6 @@ spaced :: Char -> [Char]
 spaced x = [x , ' ']
 single :: a -> [a]
 single x = [x]
-
-
 
 levels :: Double -> Int
 levels x | x < -0.9 = 0
