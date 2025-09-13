@@ -20,8 +20,8 @@ parseSphere = do
 
 parseObject :: Parser Object
 parseObject = do 
-                c <- upper
-                case c of
+                ch <- upper
+                case ch of
                     'S' -> parseSphere
                     'P' -> do
                             ((x,y,z),(a,b,c)) <- pair (triple double double double) (triple double double double)

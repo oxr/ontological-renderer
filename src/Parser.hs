@@ -24,12 +24,13 @@ nat,
 int, 
 pair, 
 triple, 
+singleton,
+parsen,
 list, 
+dropSecond,
 double ) where
 import Data.Char (isDigit, isLower, isUpper, ord)
 import GHC.Float (int2Double)
-import Data.Ratio((%))
-import Data.List.NonEmpty (unfoldr)
 
 newtype Parser a = Parser {run :: String -> [(a,String)]}
 
@@ -143,21 +144,8 @@ double = int >>= \i -> return (int2Double i) -|- do
            fracd <- many digit
            return (int2Double i + (int2Double(eval fracd) / 10^length fracd))
 
-
-
-
--- list is like many , except that we have all the other syntax around
--- with the commas, it is not the case that we simple repeat
-
-lift :: (a->b) -> Parser a -> Parser b 
-lift f pa = f <$> pa
-
-
-
 singleton :: Parser a -> Parser [a]
-singleton =  lift return  
-
-
+singleton =  fmap return  
 
 neList :: Parser a -> Parser [a]             
 neList pa = do
@@ -184,7 +172,7 @@ parsen n p = do _ <- char '[' ; l <- parseInside n p ; _ <- char ']' ; return l
               where 
                 parseInside :: Int -> Parser a -> Parser [a]
                 parseInside n p | n <= 0  = return []
-                                | n == 1  = do a<- p ; return [a]
+                                | n == 1  = do a <- p ; return [a]
                                 | n > 1   = do a <- p ; _ <- char ',' ; as <- parseInside  (n-1) p ; return (a:as)
 
 

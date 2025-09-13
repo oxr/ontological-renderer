@@ -5,26 +5,17 @@ module Scene(
   Scene(..), 
   Cam(..),
   renderScene, 
-  twice, spaced, single, showScene, rays, charShades, charNumbers ) where
+  twice, spaced, single, showScene, rays, charShades, charNumbers, intersect, minRay ) where
 
 import Vector
 
 
 
-data Ray = Ray Vec Vec 
+data Ray = Ray { pos :: Vec , dir :: Vec }
             deriving Show
 
-origin :: Ray -> Vec
-origin (Ray v _ )= v
-
-direction :: Ray -> Vec
-direction (Ray _ v) = v
-
-mkNormalRay :: Vec -> Vec -> Ray
-mkNormalRay o d = Ray o (normalize d)
-
-data Object = Sphere Vec Double
-            | Plane Ray
+data Object = Sphere { center :: Vec, radius :: Double}
+            | Plane { normal :: Ray}
           deriving Show
 
 newtype Light = Light { mainSource :: Vec }     
@@ -33,7 +24,7 @@ newtype Light = Light { mainSource :: Vec }
 -- at this point light is just a direction from an infinite distance
 newtype Scene = Scene { objects:: [Object]  }  deriving Show
 
-data Cam = Cam { dx :: Int , dy :: Int, f :: Int}
+data Cam = Cam { cam_dx :: Int , cam_dy :: Int, cam_f :: Int}
 
 {-
 multScn :: Double -> Scene -> Scene
@@ -90,10 +81,22 @@ intersectPlane o n (Ray ro rd)
 -- in a given scene, for a given point and direction the 
 -- assumptions: Ray is normal , Light vector is normal
 lightingModel :: Scene -> Light -> Ray -> Double
-lightingModel _ (Light ms) = lambert (vecNeg ms)
-                where 
-                    lambert :: Vec -> Ray -> Double
-                    lambert v (Ray _ d)  = v `dot` d
+lightingModel s (Light ms) p = 
+  if pointIsLit then lambert (vecNeg ms) p else -1
+    where 
+      pointIsLit :: Bool -- is the point p visible from light ? 
+      pointIsLit = isEmpty (objectIntersects (Ray (pos p) (ms)))
+      objectIntersects :: Ray -> [Double]
+      objectIntersects r =  filter (\x -> not (almost0 x) && x > 0) (map (dot ms . (pos r <-> ) . pos) (concatMap (`intersect` r ) (objects s)))
+      lambert :: Vec -> Ray -> Double
+      lambert v (Ray _ d)  = v `dot` d
+
+isEmpty :: [a] -> Bool
+isEmpty [] = True
+isEmpty (_:_) = False
+
+almost0 :: (Ord a, Fractional a) => a -> Bool
+almost0 x = x < 1e-12    
 
 
 -- now just collect all intersections for all rays , calculate their light value and you are done. 
@@ -105,11 +108,6 @@ lightingModel _ (Light ms) = lambert (vecNeg ms)
 rays :: Int -> Int -> Int -> [[Ray]]
 rays f dx dy = [ [ mkRay x y | x <- [-dx .. dx] ] | y <- [-dy .. dy] ]
                 where mkRay x y = Ray (V 0 0 0) (V (fromIntegral x) (fromIntegral y) (fromIntegral f))
-
-
-take1st :: [a] -> [a]
-take1st [] = []
-take1st (h:_) = [h]
 
 -- an alternative version of minimum, with Maybe, instead of exception
 minimum :: (a -> a -> Bool) -> [a] -> [a] 
@@ -127,10 +125,12 @@ showScene s l = map showScanline
                 showScanline  = map (showRay s l)
 
 showRay :: Scene -> Light -> Ray -> Double
-showRay s l r = let objectIntersects = map (`intersect`  r) (objects s)
-                    flatOI = concat objectIntersects
+showRay s l r = let oi = map (`intersect`  r) (objects s)
+                    flatOI = concat oi
                     singleIO = minRay flatOI 
-                in case singleIO of [] -> 0 ; r' : _ -> lightingModel s l r'
+                in case singleIO of 
+                    []      -> -1 
+                    r' : _  -> lightingModel s l r'
 
 {-
     let objectIntersectors = map intersect (objects s)
@@ -151,21 +151,21 @@ single :: a -> [a]
 single x = [x]
 
 levels :: Double -> Int
-levels x | x < -0.9 = 0
-         | x < -0.75 = 1
-         | x < -0.5 = 2
+levels x | x < -0.8 = 0
+         | x < -0.6 = 1
+         | x < -0.4 = 2
          | x < -0.2 = 3
          | x < 0    = 4
          | x < 0.2  = 5 
-         | x < 0.5  = 6
-         | x < 0.7  = 7
-         | x < 0.9   = 8
+         | x < 0.4  = 6
+         | x < 0.6  = 7
+         | x < 0.8   = 8
          | otherwise = 9
 
 
 
 charShades :: String
-charShades = "#@%±*~-,. "
+charShades = "#%±=:;-,. "
 
 charNumbers :: String
 charNumbers = "0123456789"
