@@ -157,15 +157,15 @@ levels x | x < -0.8 = 0
          | x < -0.2 = 3
          | x < 0    = 4
          | x < 0.2  = 5 
-         | x < 0.4  = 6
-         | x < 0.6  = 7
-         | x < 0.8   = 8
+         | x < 0.3  = 6
+         | x < 0.4  = 7
+         | x < 0.6   = 8
          | otherwise = 9
 
 
 
 charShades :: String
-charShades = "#%±=:;-,. "
+charShades = "#%±+/=,.  "
 
 charNumbers :: String
 charNumbers = "0123456789"
