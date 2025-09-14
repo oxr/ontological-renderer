@@ -82,7 +82,7 @@ intersectPlane o n (Ray ro rd)
 -- assumptions: Ray is normal , Light vector is normal
 lightingModel :: Scene -> Light -> Ray -> Double
 lightingModel s (Light ms) p = 
-  if pointIsLit then lambert (vecNeg ms) p else -1
+  if pointIsLit then lambert (vecNeg ms) p else -1 + reflect
     where 
       pointIsLit :: Bool -- is the point p visible from light ? 
       pointIsLit = isEmpty (objectIntersects (Ray (pos p) (ms)))
@@ -90,6 +90,8 @@ lightingModel s (Light ms) p =
       objectIntersects r =  filter (\x -> not (almost0 x) && x > 0) (map (dot ms . (pos r <-> ) . pos) (concatMap (`intersect` r ) (objects s)))
       lambert :: Vec -> Ray -> Double
       lambert v (Ray _ d)  = v `dot` d
+      reflect :: Double
+      reflect = 0 --(normalize (dir p) `dot` normalize(ms)) 
 
 isEmpty :: [a] -> Bool
 isEmpty [] = True
@@ -151,15 +153,15 @@ single :: a -> [a]
 single x = [x]
 
 levels :: Double -> Int
-levels x | x < -0.8 = 0
-         | x < -0.6 = 1
-         | x < -0.4 = 2
-         | x < -0.2 = 3
+levels x | x < -0.5 = 0
+         | x < -0.4 = 1
+         | x < -0.3 = 2
+         | x < -0.15 = 3
          | x < 0    = 4
-         | x < 0.2  = 5 
+         | x < 0.15  = 5 
          | x < 0.3  = 6
          | x < 0.4  = 7
-         | x < 0.6   = 8
+         | x < 0.5   = 8
          | otherwise = 9
 
 
