@@ -59,13 +59,26 @@ sinVec a b = size (a `cross` b) / size a / size b
 cosVec :: Vec -> Vec -> Double
 cosVec a b = dot a b  / size a * size b
 
--- matrixes are assumed to be rectangular
+-- matrixes are 3 x 3
 -- lines are vectors
 type Matrix_ a = Vec_ (Vec_ a)
 
 transpose :: Matrix_ a -> Matrix_ a
 transpose (V (V a11 a12 a13 ) (V a21 a22 a23) (V a31 a32 a33)) = 
-            (V (V a11 a21 a31) (V a12 a22 a32) (V a13 a23 a33))
+            V (V a11 a21 a31) (V a12 a22 a32) (V a13 a23 a33)
+
+-- matrix multiplication
+mxMult :: Num a => Matrix_ a -> Vec_ a -> Vec_ a
+mxMult (V r1 r2 r3) v = V (r1 `dot` v) (r2 `dot` v) (r3 `dot` v)
+
+-- some interesting matrixes
+-- scaling 
+multMx :: Num a => a -> Matrix_ a
+multMx a = V (V a 0 0) (V 0 a 0) (V 0 0 a)
+
+-- rotations
+
+
 
 -- vector +
 (<+>) :: Num a => Vec_ a -> Vec_ a  -> Vec_ a

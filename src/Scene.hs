@@ -5,7 +5,17 @@ module Scene(
   Scene(..), 
   Cam(..),
   renderScene, 
-  twice, spaced, single, showScene, rays, charShades, charNumbers, intersect, minRay ) where
+  twice, 
+  spaced, 
+  single, 
+  showScene,
+  showRay, 
+  rays, 
+  charShades, 
+  charNumbers, 
+  intersect, 
+  minRay,
+  scaleScene ) where
 
 import Vector
 
@@ -35,6 +45,14 @@ multO n (Sphere v r) = Sphere (map (*n) v) (r * n)
 multO n (Plane (Ray u v)) = Plane (Ray (map (*n) u) (map (*n) v))
 
 -}
+
+-- matrix multiplication for scenes
+scaleScene :: Double -> Scene -> Scene
+scaleScene m (Scene os) = Scene (map (scaleObject m) os)
+
+scaleObject :: Double -> Object -> Object
+scaleObject m (Sphere c r) = Sphere (m `scaMult` c) (m * r)
+scaleObject m (Plane (Ray p n)) = Plane (Ray (m `scaMult` p) n )
 
 -- intersection of Ray and Object gives a point and a normal, ie. a Ray
 intersect :: Object -> Ray ->  [Ray]
@@ -82,7 +100,7 @@ intersectPlane o n (Ray ro rd)
 -- assumptions: Ray is normal , Light vector is normal
 lightingModel :: Scene -> Light -> Ray -> Double
 lightingModel s (Light ms) p = 
-  if pointIsLit then lambert (vecNeg ms) p else -1 + reflect
+  if pointIsLit then lambert (vecNeg ms) p else max (reflect * 0.5) 0
     where 
       pointIsLit :: Bool -- is the point p visible from light ? 
       pointIsLit = isEmpty (objectIntersects (Ray (pos p) (ms)))
@@ -91,7 +109,7 @@ lightingModel s (Light ms) p =
       lambert :: Vec -> Ray -> Double
       lambert v (Ray _ d)  = v `dot` d
       reflect :: Double
-      reflect = 0 --(normalize (dir p) `dot` normalize(ms)) 
+      reflect =  (normalize (dir p)) `dot`  (normalize ms) 
 
 isEmpty :: [a] -> Bool
 isEmpty [] = True
@@ -131,7 +149,7 @@ showRay s l r = let oi = map (`intersect`  r) (objects s)
                     flatOI = concat oi
                     singleIO = minRay flatOI 
                 in case singleIO of 
-                    []      -> -1 
+                    []      -> 0.5 
                     r' : _  -> lightingModel s l r'
 
 {-

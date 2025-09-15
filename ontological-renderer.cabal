@@ -1,4 +1,4 @@
-cabal-version:      3.0
+cabal-version:      3.0 
 -- The cabal-version field refers to the version of the .cabal specification,
 -- and can be different from the cabal-install (the tool) version and the
 -- Cabal (the library) version you are using. As such, the Cabal (the library)
@@ -65,13 +65,14 @@ library
     exposed-modules:  Parser, Scene
 
     -- Modules included in this library but not exported.
-    other-modules:    
+    other-modules:    Vector
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
 
     -- Other library packages from which modules are imported.
-    build-depends:    base >= 4.18 && < 4.22
+    build-depends:    base >= 4.18 && < 4.22,
+                      JuicyPixels
 
     -- Directories containing source files.
     hs-source-dirs:   src
@@ -87,7 +88,7 @@ executable ontological-renderer
     main-is:          Main.hs
 
         -- Modules included in this executable, other than Main.
-    other-modules: MyLib, Scene, Vector, Parser
+    other-modules: MyLib, Scene, Vector, Parser, CLParser
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
@@ -95,7 +96,9 @@ executable ontological-renderer
     -- Other library packages from which modules are imported.
     build-depends:
         base >= 4.18 && < 4.22,
-        ontological-renderer
+        ontological-renderer,
+        JuicyPixels
+        
 
     -- Directories containing source files.
     hs-source-dirs: app
