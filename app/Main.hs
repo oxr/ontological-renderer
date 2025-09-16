@@ -1,7 +1,8 @@
 module Main where
 
 import CLParser (parseCam, parseLight, parseScene) 
-import Scene (Light(..), Scene(..), Object(..), renderScene, showRay, charShades, twice, showScene, rays, Ray (..), scaleScene)
+import Scene 
+import Renderer
 import Parser(run, int)
 
 import Vector ( normalize , Vec_(..))
@@ -65,10 +66,14 @@ main' dx dy f scene light pixelSize filename =
     pixelRenderer x' y' = 
         let x = (x'`div` pixelSize) - dx `div` (pixelSize) 
             y = (y' `div` pixelSize) - dy `div` (pixelSize)
-        in pixelFromDouble (showRay scene light (Ray (V 0 0 0) (V (fromIntegral x) (fromIntegral y) (fromIntegral (f `div` pixelSize))))) 
+        in pixel16FromDouble (showRay scene light (Ray (V 0 0 0) (V (fromIntegral x) (fromIntegral y) (fromIntegral (f `div` pixelSize))))) 
+    -- from <0,1> to <0,maxBound>
+    pixel16FromDouble :: Double -> Pixel16  
+    pixel16FromDouble d =  round (d *  fromIntegral topBound)
+        where     
+            topBound :: Pixel16
+            topBound = maxBound
 
-    pixelFromDouble :: Double -> Pixel16  
-    pixelFromDouble = roundDouble .  (* (2 ** 16) )                    
 
 -- textual rendering
 {-          let s = render scene light f dx dy 

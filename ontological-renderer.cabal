@@ -62,10 +62,10 @@ library
     import:           warnings
 
     -- Modules exported by the library.
-    exposed-modules:  Parser, Scene
+    exposed-modules:  Parser, Scene, Renderer
 
     -- Modules included in this library but not exported.
-    other-modules:    Vector
+    other-modules:    Vector, Utils
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
@@ -88,7 +88,7 @@ executable ontological-renderer
     main-is:          Main.hs
 
         -- Modules included in this executable, other than Main.
-    other-modules: MyLib, Scene, Vector, Parser, CLParser
+    other-modules: MyLib, Scene, Vector, Parser, CLParser, Renderer, Utils
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
