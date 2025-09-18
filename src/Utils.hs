@@ -8,4 +8,4 @@ isEmpty [] = True
 isEmpty (_:_) = False
 
 almost0 :: (Ord a, Fractional a) => a -> Bool
-almost0 x = x < 1e-12    
+almost0 x = x < 0.0001    

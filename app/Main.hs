@@ -1,72 +1,90 @@
 module Main where
 
-import CLParser (parseCam, parseLight, parseScene) 
+import CLParser (parseScene)
 import Scene 
 import Renderer
-import Parser(run, int)
-
-import Vector ( normalize , Vec_(..))
+import Parser(run )
+import qualified Config 
+import Vector ( Vec_(..))
 import System.Environment (getArgs)
 import Codec.Picture
-import GHC.Float (roundDouble)
-import Data.List (find, genericLength)
-import Data.Maybe (isJust)
-import Data.Fixed (HasResolution(resolution))
+import Data.List (genericLength)
+import Control.Monad.Except
+import System.Random.Stateful
 
-help =  "usage: ontological-renderer <camera> <light> <scene> <pixel-size> <output-filename>\n"++
-        "where <camera> is a vector of the form (dx,dy,f), where dx is resolution x, dy is resolution y, f is focal length\n" ++
-        "<light> is a ray: (o,d) where o and d are vectors for origin and direction\n" ++
-        "<scene> is a list [object[,object,...]] of objects where each object is either of \n" ++ 
-        "   S((x,y,z),r) for sphere at (x,y,z) radius r\n" ++
-        "   P((x,y,z),(nx,ny,nz)) for plane at (x,y,z) normal (nx,ny,nz)\n" ++
-        "<pixel-size> is an integer\n" ++
-        "<output-filename> is the filename the png is saved to\n"
+help :: [Char]
+help =  "usage: ontological-renderer <config file> <outputfile.png>\n" ++
+        "see or.conf for further help."
 
+-- type ConfigFileMonad = ExceptT CF.CPError IO
+
+data Config = Config { 
+    pixelSize :: Int , 
+    camera :: Cam, 
+    light :: Light,
+    scale :: Double,
+    scenedef :: String ,
+    antiAliasing :: Int }
 
 
 main :: IO ()
-main = do
+main = do 
         args <- getArgs
-        if length args < 4 then putStrLn help 
-        else 
-            let c = run parseCam (head args)
-                l = run parseLight (args !! 1 )
-                s = run parseScene (args !! 2)
-                ps = run int (args !! 3)
-            in
-            case c of
-                [] ->  fail "Invalid Cam syntax"
-                ((dx,dy,f ), _) : _ -> do
-                    print (dx, dy, f)            
-                    case l of 
-                        [] -> fail "Invalid Light syntax" 
-                        (light',_) : _ -> do
-                            let light = light' { mainSource = normalize $  mainSource light' }
-                            print light                            
-                            case s of 
-                                [] -> fail "Invalid Scene syntax"
-                                (scene' ,_ ) : _ -> do 
-                                    let pixelSize = case ps of 
-                                                        [] -> 1
-                                                        (n,_) : _ -> n
-                                    let scene = scaleScene (1.0 / fromIntegral pixelSize) scene' 
-                                    print scene'
-                                    print scene
-                                    print $ "Pixel size: " ++ show pixelSize
-                                    main' dx dy f scene light pixelSize (args!!4)
+        if length args < 2 then putStrLn help 
+        else do
+            x <- runExceptT $ do  
+              cp <- Config.configFile (args!!0)
+              ps <- Config.pixelSize cp
+              cam <- Config.image cp
+              light <- Config.light cp
+              scale <- Config.scale cp
+              scene <- Config.scene cp
+              aa <- Config.antiAliasing cp
+              return $ Config ps cam light scale scene aa
+            case x of 
+                Left e -> fail (show e)
+                Right cfg -> do
+                    let c = camera cfg
+                    let s = run parseScene (scenedef cfg)
+                    case s of 
+                        [] -> fail "Invalid Scene syntax"
+                        (scene' ,_ ) : _ -> do 
+                            let scene = scaleScene (scale cfg / fromIntegral (pixelSize cfg)) scene' 
+                            main' (resolution_x c) (resolution_y c) (focalLength c) scene (light cfg) (pixelSize cfg) (antiAliasing cfg) (args!!1)
+                            print "done."
 
-                                  
+type JitterMap = Int -> Int -> [(Double, Double)]
 
+generateJitterMap :: Int -> Int -> Int -> IO JitterMap
+generateJitterMap dx dy spp = do -- samples per pixel
+    array <- replicateM dy (replicateM dx (rollDice spp))
+    return (\x y -> (array !! x) !! y)
+    where roll1Dice :: IO (Double, Double)
+          roll1Dice = do     
+                        jx <- applyAtomicGen (uniformR (-0.5, 0.5)) globalStdGen  
+                        jy <- applyAtomicGen (uniformR (-0.5, 0.5)) globalStdGen  
+                        return (jx,jy)
+          rollDice :: Int -> IO [(Double,Double)] -- rollDice n-times 
+          rollDice n = replicateM n roll1Dice
 
-main' :: Int -> Int -> Int -> Scene -> Light -> Int -> String -> IO ()
-main' dx dy f scene light pixelSize filename = 
-    writePng filename $ generateImage pixelRenderer (2*dx) (2*dy)
-    where 
-    pixelRenderer :: Int -> Int -> Pixel16 
-    pixelRenderer x' y' = 
-        let x = (x'`div` pixelSize) - dx `div` (pixelSize) 
-            y = (y' `div` pixelSize) - dy `div` (pixelSize)
-        in pixel16FromDouble (showRay scene light (Ray (V 0 0 0) (V (fromIntegral x) (fromIntegral y) (fromIntegral (f `div` pixelSize))))) 
+        
+
+main' :: Int -> Int -> Int -> Scene -> Light -> Int -> Int -> String -> IO ()
+main' dx dy f scene light pixelSize jitters filename = do
+    print $ "Generating jitter map: " ++ show (2*dx)  ++ " x " ++ show (2*dy)
+    jitterMap <- generateJitterMap (2*dx) (2*dy) jitters
+    print "Rendering..."
+    writePng filename $ generateImage (pixelRenderer jitterMap) (2*dx) (2*dy)
+    where
+    pixelRenderer :: JitterMap -> Int -> Int -> Pixel16 
+    pixelRenderer jitterMap x' y' = -- pixelation is simply div - going from a high resolution to a lower one by repetition of the same value 
+        let x = (x' - dx) `div` pixelSize 
+            y = (y' - dy) `div` pixelSize
+            jitters = jitterMap x'  y'
+            rays = map (\(jx,jy) -> showRay scene light (Ray (V 0 0 0) (V (fromIntegral x + jx) (fromIntegral y + jy) (fromIntegral (f `div` pixelSize))))) jitters
+            avgrays = sum rays / fromIntegral (length rays)
+        in 
+            pixel16FromDouble avgrays 
     -- from <0,1> to <0,maxBound>
     pixel16FromDouble :: Double -> Pixel16  
     pixel16FromDouble d =  round (d *  fromIntegral topBound)

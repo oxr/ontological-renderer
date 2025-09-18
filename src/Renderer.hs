@@ -17,7 +17,12 @@ import Scene
 import Vector
 import Utils
 
-data Cam = Cam { cam_dx :: Int , cam_dy :: Int, cam_f :: Int}
+data Cam = Cam { 
+    cam_pos :: Vec , 
+    cam_dir :: Vec , 
+    resolution_x :: Int , 
+    resolution_y :: Int, 
+    focalLength :: Int}
 
 -- intersection of Ray and Object gives a point and a normal, ie. a Ray
 intersect :: Object -> Ray ->  [Ray]
