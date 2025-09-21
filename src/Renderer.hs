@@ -1,33 +1,47 @@
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE InstanceSigs #-}
 module Renderer (
   Cam(..),
+  Shape(..),
   typewriterDoubles,
-  twice, 
-  spaced, 
-  single, 
+  twice,
+  spaced,
+  single,
   showScene,
-  showRay, 
-  rays, 
-  charShades, 
-  charNumbers, 
+  showRay,
+  rays,
+  charShades,
+  charNumbers,
   minRay,
-  intersect
+  intersect,
+  reflection
 ) where
 
-import Scene 
+import Scene
 import Vector
 import Utils
+import Data.List (elemIndex)
 
-data Cam = Cam { 
-    cam_pos :: Vec , 
-    cam_dir :: Vec , 
-    resolution_x :: Int , 
-    resolution_y :: Int, 
+data Cam = Cam {
+    cam_pos :: Vec ,
+    cam_dir :: Vec ,
+    resolution_x :: Int ,
+    resolution_y :: Int,
     focalLength :: Int}
 
+
+-- refraction of incomming ray, at a point defined by the second argument
+reflection :: Vec -> Ray -> Ray
+reflection  rd (Ray op on) = Ray op refdir
+                                   where nr = rd -- normalize rd
+                                         nn = on -- normalize on
+                                         refdir = nr <-> (2 * (nr `dot` nn)) <^*> nn
+
 -- intersection of Ray and Object gives a point and a normal, ie. a Ray
-intersect :: Object -> Ray ->  [Ray]
-intersect (Sphere c d)        = intersectSphere c d
-intersect (Plane (Ray o n))   = intersectPlane o n
+intersect :: Shape -> Ray ->  [Ray] -- Ray is the plane, Vec is refraction
+intersect (Sphere c d)  = intersectSphere c d
+intersect (Plane r')    = intersectPlane r'
 
 intersectSphere :: Vec -> Double -> Ray ->  [Ray]
 intersectSphere c r (Ray o d) =
@@ -51,9 +65,8 @@ intersectSphere c r (Ray o d) =
              then [normalRay (-b)]
              else [normalRay t1, normalRay t2]
 
-
-intersectPlane :: Vec -> Vec -> Ray -> [Ray]
-intersectPlane o n (Ray ro rd)
+intersectPlane :: Ray -> Ray -> [Ray]
+intersectPlane (Ray o n) (Ray ro rd)
   | denom == 0 = []  -- Ray is parallel to the plane
   | t < 0      = []  -- Intersection is behind the ray origin
   | otherwise  = [Ray p n]  -- Intersection point with plane normal
@@ -64,22 +77,25 @@ intersectPlane o n (Ray ro rd)
 
 
 
+
+
 -- when we collect all intersections, for all rays, 
 -- for each intersection which is a collection of Rays, light model calculates
 -- in a given scene, for a given point and direction the 
 -- assumptions: Ray is normal , Light vector is normal
 lightingModel :: Scene -> Light -> Ray -> Double
-lightingModel s (Light ms) p = 
-  if pointIsLit then lambert (vecNeg ms) p else max (reflect * 0.5) 0
-    where 
+lightingModel s (Light ms) p =
+  if pointIsLit then lambert (vecNeg (normalize ms)) p else max (reflect * 0.5) 0
+    where
       pointIsLit :: Bool -- is the point p visible from light ? 
-      pointIsLit = null $ objectIntersects (Ray (pos p) ms) 
+      pointIsLit = null $ objectIntersects (Ray (pos p) ms)
       objectIntersects :: Ray -> [Double]
-      objectIntersects r =  filter (\x -> not (almost0 x) && x > 0) (map (dot ms . (pos r <-> ) . pos) (concatMap (`intersect` r ) (objects s)))
+      objectIntersects r =  filter (\x -> not (almost0 x) && x > 0)
+                            (map (dot ms . (pos r <-> ) . pos) (concatMap ((`intersect` r) . shape) (objects s)))
       lambert :: Vec -> Ray -> Double
       lambert v (Ray _ d)  = min (normalize v `dot` normalize d) 1
       reflect :: Double
-      reflect =  dir p `dot` ms 
+      reflect =  dir p `dot` ms
 
 
 
@@ -90,28 +106,33 @@ rays :: Int -> Int -> Int -> [[Ray]]
 rays f dx dy = [ [ mkRay x y | x <- [-dx .. dx] ] | y <- [-dy .. dy] ]
                 where mkRay x y = Ray (V 0 0 0) (V (fromIntegral x) (fromIntegral y) (fromIntegral f))
 
--- an alternative version of minimum, with Maybe, instead of exception
-minimum :: (a -> a -> Bool) -> [a] -> [a] 
-minimum comp = foldr (\a b -> case b of [] -> [a] ; b':_ -> if a `comp` b' then [a] else [b']) []
 
-minRay :: [Ray] -> [Ray]
-minRay = Renderer.minimum comp
-          where comp (Ray (V _ _ z1) _ ) (Ray (V _ _ z2) _) = z1 < z2 
+newtype DistancedRay = DR { unDR :: (Double, (Ray , Double)) } deriving Eq
 
+
+instance Ord DistancedRay where
+  (<=) :: DistancedRay -> DistancedRay -> Bool
+  (DR (d, _)) <= (DR (d', _)) = d <= d'
+
+-- finds the ray that is nearest to origin of the Ray, on the plus side of the ray
+minRay :: Ray -> [(Ray, Double)] -> Maybe (Ray,Double)
+minRay (Ray ro rd) vs = let dar = filter ( (>= 0.00002) . fst . unDR ) (map (\ r@(Ray io _ , _) -> DR ((io <-> ro) `dot` rd, r)) vs) -- distances along the ray
+                            minray = if null dar then Nothing else Just (minimum dar)
+                        in Just . snd . unDR =<< minray
 
 -- now calculate the light
-showScene :: Scene -> Light -> [[Ray]] -> [[Double]]
-showScene s l = map showScanline 
-                where 
-                showScanline  = map (showRay s l)
+showScene :: Scene -> Light -> Int -> [[Ray]] -> [[Double]]
+showScene s l d = map (map (showRay s l d))
 
-showRay :: Scene -> Light -> Ray -> Double
-showRay s l r = let oi = map (`intersect`  r) (objects s)
-                    flatOI = concat oi
-                    singleIO = minRay flatOI 
-                in case singleIO of 
-                    []      -> 0.65 -- the colour of the sky 
-                    r' : _  -> lightingModel s l r'
+showRay :: Scene -> Light -> Int -> Ray -> Double
+showRay s l depth r = let oi = map intersections (objects s) -- each objects results in a list of intersections
+                          singleIO = minRay r (concat oi) -- from these we choose the upfront one
+                      in case singleIO of
+                        Nothing         -> 0.75 -- the colour of the sky 
+                        Just (r', ri)   -> if depth <= 0 then lightingModel s l r'
+                                           else ri * showRay s l (depth -1) (reflection (dir r) r') + (1-ri) * lightingModel s l r'
+                      where intersections :: Object -> [(Ray, Double)] -- find intersection and stick reflectivity information to it
+                            intersections (Object ref o) = map (,ref) (o `intersect`  r)
 
 typewriterDoubles :: [Char] -> (Char -> [Char]) ->  [[Double]] -> [String]
 typewriterDoubles chars tw = map (concatMap (tw .(chars !!) . levels) )
@@ -129,7 +150,7 @@ levels x | x < -0.5 = 0
          | x < -0.3 = 2
          | x < -0.15 = 3
          | x < 0    = 4
-         | x < 0.15  = 5 
+         | x < 0.15  = 5
          | x < 0.3  = 6
          | x < 0.4  = 7
          | x < 0.5   = 8

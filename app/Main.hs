@@ -24,7 +24,8 @@ data Config = Config {
     light :: Light,
     scale :: Double,
     scenedef :: String ,
-    antiAliasing :: Int }
+    antiAliasing :: Int ,
+    depth :: Int}
 
 
 main :: IO ()
@@ -40,7 +41,8 @@ main = do
               scale <- Config.scale cp
               scene <- Config.scene cp
               aa <- Config.antiAliasing cp
-              return $ Config ps cam light scale scene aa
+              depth <- Config.depth cp
+              return $ Config ps cam light scale scene aa depth
             case x of 
                 Left e -> fail (show e)
                 Right cfg -> do
@@ -50,7 +52,7 @@ main = do
                         [] -> fail "Invalid Scene syntax"
                         (scene' ,_ ) : _ -> do 
                             let scene = scaleScene (scale cfg / fromIntegral (pixelSize cfg)) scene' 
-                            main' (resolution_x c) (resolution_y c) (focalLength c) scene (light cfg) (pixelSize cfg) (antiAliasing cfg) (args!!1)
+                            main' (resolution_x c) (resolution_y c) (focalLength c) scene (light cfg) (pixelSize cfg) (antiAliasing cfg) (depth cfg) (args!!1)
                             print "done."
 
 type JitterMap = Int -> Int -> [(Double, Double)]
@@ -69,8 +71,8 @@ generateJitterMap dx dy spp = do -- samples per pixel
 
         
 
-main' :: Int -> Int -> Int -> Scene -> Light -> Int -> Int -> String -> IO ()
-main' dx dy f scene light pixelSize jitters filename = do
+main' :: Int -> Int -> Int -> Scene -> Light -> Int -> Int -> Int -> String -> IO ()
+main' dx dy f scene light pixelSize jitters depth filename = do
     print $ "Generating jitter map: " ++ show (2*dx)  ++ " x " ++ show (2*dy)
     jitterMap <- generateJitterMap (2*dx) (2*dy) jitters
     print "Rendering..."
@@ -81,16 +83,16 @@ main' dx dy f scene light pixelSize jitters filename = do
         let x = (x' - dx) `div` pixelSize 
             y = (y' - dy) `div` pixelSize
             jitters = jitterMap x'  y'
-            rays = map (\(jx,jy) -> showRay scene light (Ray (V 0 0 0) (V (fromIntegral x + jx) (fromIntegral y + jy) (fromIntegral (f `div` pixelSize))))) jitters
+            rays = map (\(jx,jy) -> showRay scene light depth (Ray (V 0 0 0) (V (fromIntegral x + jx) (fromIntegral y + jy) (fromIntegral (f `div` pixelSize))))) jitters
             avgrays = sum rays / fromIntegral (length rays)
         in 
             pixel16FromDouble avgrays 
     -- from <0,1> to <0,maxBound>
     pixel16FromDouble :: Double -> Pixel16  
-    pixel16FromDouble d =  round (d *  fromIntegral topBound)
+    pixel16FromDouble d =  round (d *  fromIntegral topBound) -- round (max (min d 1.0) 0 *  fromIntegral topBound)
         where     
             topBound :: Pixel16
-            topBound = maxBound
+            topBound = maxBound  
 
 
 -- textual rendering
