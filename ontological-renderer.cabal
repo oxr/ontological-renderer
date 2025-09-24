@@ -97,6 +97,7 @@ executable ontological-renderer
 
     -- Other library packages from which modules are imported.
     build-depends:
+        vector ^>=0.13.2.0,
         ConfigFile ^>=1.1.4,
         mtl ^>=2.2.2,
         base >= 4.18 && < 4.22,

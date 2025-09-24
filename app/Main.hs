@@ -11,6 +11,7 @@ import Codec.Picture
 import Data.List (genericLength)
 import Control.Monad.Except
 import System.Random.Stateful
+import qualified Data.Vector as V
 
 help :: [Char]
 help =  "usage: ontological-renderer <config file> <outputfile.png>\n" ++
@@ -55,20 +56,28 @@ main = do
                             main' (resolution_x c) (resolution_y c) (focalLength c) scene (light cfg) (pixelSize cfg) (antiAliasing cfg) (depth cfg) (args!!1)
                             print "done."
 
-type JitterMap = Int -> Int -> [(Double, Double)]
+-- for each (x,y) pixel, a vector of jitters
+type JitterMap = V.Vector (V.Vector (V.Vector (Double, Double)))
 
 generateJitterMap :: Int -> Int -> Int -> IO JitterMap
-generateJitterMap dx dy spp = do -- samples per pixel
-    array <- replicateM dy (replicateM dx (rollDice spp))
-    return (\x y -> (array !! x) !! y)
-    where roll1Dice :: IO (Double, Double)
+generateJitterMap dx dy spp = do
+                                let jitters = rollDice spp
+                                let line  = V.replicateM dx jitters
+                                let matx =  V.replicateM dy line
+                                matx
+--    return ( V.replicateM dy (V.replicateM dx (rollDice spp)))
+    where rollDice :: Int -> IO (V.Vector (Double,Double)) -- rollDice n-times 
+          rollDice n = V.replicateM n roll1Dice
+          roll1Dice :: IO (Double, Double)
           roll1Dice = do     
                         jx <- applyAtomicGen (uniformR (-0.5, 0.5)) globalStdGen  
                         jy <- applyAtomicGen (uniformR (-0.5, 0.5)) globalStdGen  
                         return (jx,jy)
-          rollDice :: Int -> IO [(Double,Double)] -- rollDice n-times 
-          rollDice n = replicateM n roll1Dice
+          
 
+
+
+    
         
 
 main' :: Int -> Int -> Int -> Scene -> Light -> Int -> Int -> Int -> String -> IO ()
@@ -82,8 +91,8 @@ main' dx dy f scene light pixelSize jitters depth filename = do
     pixelRenderer jitterMap x' y' = -- pixelation is simply div - going from a high resolution to a lower one by repetition of the same value 
         let x = (x' - dx) `div` pixelSize 
             y = (y' - dy) `div` pixelSize
-            jitters = jitterMap x'  y'
-            rays = map (\(jx,jy) -> showRay scene light depth (Ray (V 0 0 0) (V (fromIntegral x + jx) (fromIntegral y + jy) (fromIntegral (f `div` pixelSize))))) jitters
+            jitters = jitterMap V.! x' V.! y'
+            rays = V.map (\(jx,jy) -> showRay scene light depth (Ray (V 0 0 0) (V (fromIntegral x + jx) (fromIntegral y + jy) (fromIntegral (f `div` pixelSize))))) jitters
             avgrays = sum rays / fromIntegral (length rays)
         in 
             pixel16FromDouble avgrays 
