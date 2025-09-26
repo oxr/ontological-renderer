@@ -5,6 +5,10 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE NoStarIsType #-}
 {-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 
 module Vector where
@@ -21,6 +25,18 @@ instance Foldable Vec_  where
 instance Functor Vec_ where
     fmap f (V a b c) = V (f a) (f b) (f c)
 
+class HasPosition a where   
+    pos :: a -> Vec
+
+instance HasPosition Vec where
+    pos = id
+
+
+class HasDirection a  where
+    dir :: a -> Vec
+
+instance HasDirection Vec where
+    dir = id
 
 
 zipWithVec :: (a -> b -> c) -> Vec_ a -> Vec_ b -> Vec_ c

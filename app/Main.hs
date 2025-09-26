@@ -87,7 +87,7 @@ main' dx dy f scene light pixelSize jitters depth filename = do
     print "Rendering..."
     writePng filename $ generateImage (pixelRenderer jitterMap) (2*dx) (2*dy)
     where
-    pixelRenderer :: JitterMap -> Int -> Int -> Pixel16 
+    pixelRenderer :: JitterMap -> Int -> Int -> Cmyk
     pixelRenderer jitterMap x' y' = -- pixelation is simply div - going from a high resolution to a lower one by repetition of the same value 
         let x = (x' - dx) `div` pixelSize 
             y = (y' - dy) `div` pixelSize
@@ -97,8 +97,7 @@ main' dx dy f scene light pixelSize jitters depth filename = do
         in 
             pixel16FromDouble avgrays 
     -- from <0,1> to <0,maxBound>
-    pixel16FromDouble :: Double -> Pixel16  
-    pixel16FromDouble d =  round (d *  fromIntegral topBound) -- round (max (min d 1.0) 0 *  fromIntegral topBound)
+    pixel16FromDouble d =   d *  fromIntegral topBound  -- round (max (min d 1.0) 0 *  fromIntegral topBound)
         where     
             topBound :: Pixel16
             topBound = maxBound  

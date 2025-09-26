@@ -28,7 +28,7 @@ singleton,
 parsen,
 list, 
 dropSecond,
-double ) where
+double, quadruple ) where
 import Data.Char (isDigit, isLower, isUpper, ord)
 import GHC.Float (int2Double)
 
@@ -130,6 +130,9 @@ pair pa pb = do { _ <- char '(' ; a <- pa ; _ <- char ',' ; b <- pb ; _ <- char 
 
 triple :: Parser a -> Parser b -> Parser c -> Parser (a,b,c)
 triple pa pb pc = do { _ <- char '(' ; a <- pa ; _ <- char ',' ; b <- pb ; _ <- char ',' ; c <- pc ; _ <- char ')' ; return (a,b,c) }
+
+quadruple :: Parser a -> Parser b -> Parser c -> Parser d -> Parser (a , b , c , d)
+quadruple pa pb pc pd = do { _ <- char '('; a <- pa ; _ <- char ','; b <- pb ; _ <- char ',' ; c <- pc ; _ <- char ',' ; d <- pd ; _ <- char ')' ; return (a,b,c,d)}
 
              
 dropSecond :: Parser a -> Parser b -> Parser a

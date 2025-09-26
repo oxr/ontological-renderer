@@ -1,6 +1,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 module Renderer (
   Cam(..),
   Shape(..),
@@ -22,6 +23,8 @@ import Scene
 import Vector
 import Utils
 import Data.List (elemIndex)
+import Data.Bifoldable (bifoldl')
+import GHC.Base (VecElem(Word16ElemRep))
 
 data Cam = Cam {
     cam_pos :: Vec ,
@@ -83,9 +86,9 @@ intersectPlane (Ray o n) (Ray ro rd)
 -- for each intersection which is a collection of Rays, light model calculates
 -- in a given scene, for a given point and direction the 
 -- assumptions: Ray is normal , Light vector is normal
-lightingModel :: Scene -> Light -> Ray -> Double
+lightingModel :: Scene -> Light -> Ray -> Cmyk
 lightingModel s (Light ms) p =
-  if pointIsLit then lambert (vecNeg (normalize ms)) p else max (reflect * 0.5) 0
+  if pointIsLit then (0,0,0, round $ 255 *  lambert (vecNeg (normalize ms)) p) else (0,0,0, max ( round $ 255 * reflect * 0.5) 0)
     where
       pointIsLit :: Bool -- is the point p visible from light ? 
       pointIsLit = null $ objectIntersects (Ray (pos p) ms)
@@ -107,32 +110,52 @@ rays f dx dy = [ [ mkRay x y | x <- [-dx .. dx] ] | y <- [-dy .. dy] ]
                 where mkRay x y = Ray (V 0 0 0) (V (fromIntegral x) (fromIntegral y) (fromIntegral f))
 
 
-newtype DistancedRay = DR { unDR :: (Double, (Ray , Double)) } deriving Eq
+
+newtype Distanced a b = Dist { unD :: (a, b) }
+instance Eq a => Eq (Distanced a b) where
+  (==) (Dist (a,b)) (Dist (a',b')) =  a' == a'
 
 
-instance Ord DistancedRay where
-  (<=) :: DistancedRay -> DistancedRay -> Bool
-  (DR (d, _)) <= (DR (d', _)) = d <= d'
+instance Ord a => Ord (Distanced a b) where
+  a <= b  = fst (unD a) <= fst (unD b)
+
+
+
 
 -- finds the ray that is nearest to origin of the Ray, on the plus side of the ray
-minRay :: Ray -> [(Ray, Double)] -> Maybe (Ray,Double)
-minRay (Ray ro rd) vs = let dar = filter ( (>= 0.00002) . fst . unDR ) (map (\ r@(Ray io _ , _) -> DR ((io <-> ro) `dot` rd, r)) vs) -- distances along the ray
+minRay :: HasPosition a => Ray -> [a] -> Maybe a
+minRay (Ray ro rd) vs = let dar =
+                              filter ( (>= 0.00002) . fst . unD )
+                              (map (\r -> Dist ((pos r <-> ro) `dot` rd, r)) vs)-- distances along the ray
                             minray = if null dar then Nothing else Just (minimum dar)
-                        in Just . snd . unDR =<< minray
+                        in Just . snd . unD =<< minray
+
+instance HasPosition a => HasPosition (a,b) where
+  pos (a,_) = pos a
+
+
 
 -- now calculate the light
-showScene :: Scene -> Light -> Int -> [[Ray]] -> [[Double]]
+showScene :: Scene -> Light -> Int -> [[Ray]] -> [[Cmyk]]
 showScene s l d = map (map (showRay s l d))
 
-showRay :: Scene -> Light -> Int -> Ray -> Double
+fromDouble :: Double -> Int
+fromDouble = round . (* 255)
+
+shade i = (0,0,0,i)
+
+
+showRay :: Scene -> Light -> Int -> Ray -> Cmyk
 showRay s l depth r = let oi = map intersections (objects s) -- each objects results in a list of intersections
                           singleIO = minRay r (concat oi) -- from these we choose the upfront one
                       in case singleIO of
-                        Nothing         -> 0.75 -- the colour of the sky 
-                        Just (r', ri)   -> if depth <= 0 then lightingModel s l r'
-                                           else ri * showRay s l (depth -1) (reflection (dir r) r') + (1-ri) * lightingModel s l r'
-                      where intersections :: Object -> [(Ray, Double)] -- find intersection and stick reflectivity information to it
-                            intersections (Object ref o) = map (,ref) (o `intersect`  r)
+                        Nothing         -> shade (fromDouble 0.75) -- the colour of the sky 
+                        Just (r', (ri, _))   -> if depth <= 0 then lightingModel s l r'
+                                           else (fromDouble ri, fromDouble ri, fromDouble ri , fromDouble ri)
+                                                  *
+                                                showRay s l (depth -1) (reflection (dir r) r') + quadruply (fromDouble $ 1-ri) * lightingModel s l r'
+                      where intersections :: Object -> [(Ray, Surface)] -- find intersection and stick reflectivity information to it
+                            intersections (Object o face) = map (,face) (o `intersect`  r)
 
 typewriterDoubles :: [Char] -> (Char -> [Char]) ->  [[Double]] -> [String]
 typewriterDoubles chars tw = map (concatMap (tw .(chars !!) . levels) )
