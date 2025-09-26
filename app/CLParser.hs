@@ -30,6 +30,9 @@ surface :: Parser (Double, Cmyk)
 surface = pair double cmyk
 
 
+rgb :: Parser RGB
+rgp = triple int int int
+
 cmyk :: Parser Cmyk
 cmyk = quadruple int int int int
 

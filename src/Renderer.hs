@@ -86,9 +86,9 @@ intersectPlane (Ray o n) (Ray ro rd)
 -- for each intersection which is a collection of Rays, light model calculates
 -- in a given scene, for a given point and direction the 
 -- assumptions: Ray is normal , Light vector is normal
-lightingModel :: Scene -> Light -> Ray -> Cmyk
+lightingModel :: Scene -> Light -> Ray -> Colour
 lightingModel s (Light ms) p =
-  if pointIsLit then (0,0,0, round $ 255 *  lambert (vecNeg (normalize ms)) p) else (0,0,0, max ( round $ 255 * reflect * 0.5) 0)
+  if pointIsLit then <*^> (round $ 255 *  lambert (vecNeg (normalize ms)) p) else (0,0,0, max ( round $ 255 * reflect * 0.5) 0)
     where
       pointIsLit :: Bool -- is the point p visible from light ? 
       pointIsLit = null $ objectIntersects (Ray (pos p) ms)
@@ -145,7 +145,7 @@ fromDouble = round . (* 255)
 shade i = (0,0,0,i)
 
 
-showRay :: Scene -> Light -> Int -> Ray -> Cmyk
+showRay :: Scene -> Light -> Int -> Ray -> Colour
 showRay s l depth r = let oi = map intersections (objects s) -- each objects results in a list of intersections
                           singleIO = minRay r (concat oi) -- from these we choose the upfront one
                       in case singleIO of

@@ -7,7 +7,7 @@ module Scene(
   Scene(..), 
   Shape(..),
   scaleScene, 
-  Cmyk,
+  Cmyk,Colour,Rgb,
   Surface
 ) where
 
@@ -18,7 +18,11 @@ data Ray = Ray { position :: Vec , direction :: Vec }
             deriving (Show, Eq)
                                 
 type Cmyk = (Int, Int, Int, Int)
-type Surface = (Double , Cmyk)
+type Rgb = Vec_ Int
+type Colour = Rgb
+type Surface = (Double , Colour)
+
+
 
 data Object = Object { shape :: Shape , face :: Surface} deriving Show
 data Shape = Sphere { center :: Vec, radius :: Double}

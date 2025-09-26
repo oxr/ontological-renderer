@@ -18,14 +18,14 @@ data Nat = Zero | Succ Nat
 data Vec_ a = V a a a deriving (Eq, Show)
 type Vec = Vec_ Double
 
-instance Foldable Vec_  where 
+instance Foldable Vec_  where
     foldr :: (a -> b -> b) -> b -> Vec_ a -> b
     foldr f b (V x y z) = f x (f y (f z b))
 
 instance Functor Vec_ where
     fmap f (V a b c) = V (f a) (f b) (f c)
 
-class HasPosition a where   
+class HasPosition a where
     pos :: a -> Vec
 
 instance HasPosition Vec where
@@ -37,6 +37,13 @@ class HasDirection a  where
 
 instance HasDirection Vec where
     dir = id
+
+-- the additive monoid on vectors
+instance Num a => Semigroup (Vec_ a) where
+    (<>) = (<+>)
+
+instance Num a => Monoid (Vec_ a) where
+    mempty = V 0 0 0
 
 
 zipWithVec :: (a -> b -> c) -> Vec_ a -> Vec_ b -> Vec_ c
@@ -56,11 +63,11 @@ size :: (Floating a, Num a) => Vec_ a -> a
 size v = sqrt (v <.> v)
 
 normalize :: (Floating a, Num a) => Vec_ a -> Vec_ a
-normalize x  = fmap (/s)  x      
+normalize x  = fmap (/s)  x
                 where s = size x
 
 cross :: Num a => Vec_ a -> Vec_ a -> Vec_ a
-cross (V a1 a2 a3) (V b1 b2 b3) = (V (a2*b3 - a3*b2) (a3*b1-a1*b3) (a1*b2-a2*b1))
+cross (V a1 a2 a3) (V b1 b2 b3) = V (a2*b3 - a3*b2) (a3*b1-a1*b3) (a1*b2-a2*b1)
 
 (<*>) :: Num a => Vec_ a -> Vec_ a -> Vec_ a
 (<*>) = cross
@@ -75,12 +82,13 @@ sinVec a b = size (a `cross` b) / size a / size b
 cosVec :: Vec -> Vec -> Double
 cosVec a b = dot a b  / size a * size b
 
+instance  Unital a => Vec_ a
 -- matrixes are 3 x 3
 -- lines are vectors
 type Matrix_ a = Vec_ (Vec_ a)
 
 transpose :: Matrix_ a -> Matrix_ a
-transpose (V (V a11 a12 a13 ) (V a21 a22 a23) (V a31 a32 a33)) = 
+transpose (V (V a11 a12 a13 ) (V a21 a22 a23) (V a31 a32 a33)) =
             V (V a11 a21 a31) (V a12 a22 a32) (V a13 a23 a33)
 
 -- matrix multiplication
@@ -98,7 +106,7 @@ multMx a = V (V a 0 0) (V 0 a 0) (V 0 0 a)
 
 -- vector +
 (<+>) :: Num a => Vec_ a -> Vec_ a  -> Vec_ a
-(<+>) = zipWithVec (+) 
+(<+>) = zipWithVec (+)
 
 infixl 6 <+>
 
@@ -110,7 +118,7 @@ scaMult a = fmap (* a)
 (<^*>) = scaMult
 
 (<*^>) :: Num b => Vec_ b -> b -> Vec_ b
-(<*^>) = flip scaMult 
+(<*^>) = flip scaMult
 
 infixl 9 <*^>, <^*>
 
