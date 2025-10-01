@@ -18,9 +18,9 @@ data Ray = Ray { position :: Vec , direction :: Vec }
             deriving (Show, Eq)
                                 
 type Cmyk = (Int, Int, Int, Int)
-type Rgb = Vec_ Int
+type Rgb = Vec_ Double
 type Colour = Rgb
-type Surface = (Double , Colour)
+type Surface = (Double , Colour) -- refraction index and local colour
 
 
 
@@ -29,11 +29,11 @@ data Shape = Sphere { center :: Vec, radius :: Double}
            | Plane { normal :: Ray}
           deriving Show
 
-newtype Light = Light { mainSource :: Vec }     
+data Light = Light { mainSource :: Vec, ambient :: Double }     
           deriving Show
 
 -- at this point light is just a direction from an infinite distance
-newtype Scene = Scene { objects:: [Object]  }  deriving Show
+data Scene = Scene { objects:: [Object] , sky :: Colour  }  deriving Show
 
 instance Num a => Num (a,a,a,a) where
   (a,b,c,d) * (a',b',c',d') = (a*a' , b*b', c*c', d*d')
@@ -73,7 +73,7 @@ instance HasPosition Object where
 
 -- matrix multiplication for scenes
 scaleScene :: Double -> Scene -> Scene
-scaleScene m (Scene os) = Scene (map (scaleObject m) os)
+scaleScene m (Scene os s) = Scene (map (scaleObject m) os) s
 
 scaleObject :: Double -> Object -> Object
 scaleObject m (Object  (Sphere c r) sface) = Object (Sphere ( m `scaMult` c) (m * r)) sface

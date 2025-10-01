@@ -12,7 +12,9 @@ type ConfigFileMonad = ExceptT CPError IO
 
 
 configFile :: String -> ConfigFileMonad ConfigParser
-configFile filename = join $ liftIO $ readfile emptyCP filename
+configFile filename = do
+                        cp <- join $ liftIO $ readfile emptyCP filename
+                        return cp {accessfunc = interpolatingAccess 10}
 
 pixelSize :: MonadError CPError m => ConfigParser -> m  Int
 pixelSize cp = get cp "Image" "pixelsize"                
@@ -21,7 +23,7 @@ image :: MonadError CPError m => ConfigParser -> m Cam
 image cp = do 
                 resx <- get cp "Image" "resx"
                 resy <- get cp "Image" "resy"
-                f <- get cp "Image" "f"
+                f    <- get cp "Image" "f"
                 return $ 
                     Cam (V 0 0 0) (V 0 0 1) resx resy f 
 
@@ -30,7 +32,8 @@ light cp = do
             lx <- get cp "Light" "lightx"
             ly <- get cp "Light" "lighty"
             lz <- get cp "Light" "lightz"
-            return $ Light $ normalize (V lx ly lz)
+            amb <- get cp "Light" "ambience"
+            return $ Light (normalize (V lx ly lz)) amb
 
             
 scale :: MonadError CPError m => ConfigParser -> m Double
@@ -40,8 +43,16 @@ scale cp = do
 scene :: MonadError CPError m => ConfigParser -> m String
 scene cp = get cp "Scene" "def"
 
+sky :: MonadError CPError m => ConfigParser -> m (Double,Double,Double)
+sky cp = get cp "Scene" "sky"
+
+
 antiAliasing :: MonadError CPError m => ConfigParser -> m Int
 antiAliasing cp = get cp "Image" "aa"
 
 depth :: MonadError CPError m => ConfigParser -> m Int
 depth cp = get cp "Image" "depth"
+
+ambience :: MonadError CPError m => ConfigParser -> m Double
+ambience cp = get cp "Light" "ambience"
+

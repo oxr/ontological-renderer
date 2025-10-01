@@ -13,6 +13,7 @@
 
 module Vector where
 
+
 data Nat = Zero | Succ Nat
 
 data Vec_ a = V a a a deriving (Eq, Show)
@@ -44,6 +45,15 @@ instance Num a => Semigroup (Vec_ a) where
 
 instance Num a => Monoid (Vec_ a) where
     mempty = V 0 0 0
+
+unit :: Num a => Vec_ a
+unit = V 1 1 1
+
+
+-- vectors are not in Num because they are not a ring, there is no commutative x that distributes with + 
+
+
+
 
 
 zipWithVec :: (a -> b -> c) -> Vec_ a -> Vec_ b -> Vec_ c
@@ -82,7 +92,6 @@ sinVec a b = size (a `cross` b) / size a / size b
 cosVec :: Vec -> Vec -> Double
 cosVec a b = dot a b  / size a * size b
 
-instance  Unital a => Vec_ a
 -- matrixes are 3 x 3
 -- lines are vectors
 type Matrix_ a = Vec_ (Vec_ a)
@@ -121,6 +130,15 @@ scaMult a = fmap (* a)
 (<*^>) = flip scaMult
 
 infixl 9 <*^>, <^*>
+
+-- scalar division
+scaDiv :: Fractional a => a -> Vec_ a -> Vec_ a
+scaDiv a = fmap (/ a)
+
+(<^/>) = scaDiv
+(</^>) = flip scaDiv
+
+infixl 9 </^>, <^/>
 
 
 vecNeg :: Num a => Vec_ a -> Vec_ a

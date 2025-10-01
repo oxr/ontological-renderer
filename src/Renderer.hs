@@ -80,15 +80,14 @@ intersectPlane (Ray o n) (Ray ro rd)
 
 
 
-
-
--- when we collect all intersections, for all rays, 
 -- for each intersection which is a collection of Rays, light model calculates
 -- in a given scene, for a given point and direction the 
 -- assumptions: Ray is normal , Light vector is normal
-lightingModel :: Scene -> Light -> Ray -> Colour
-lightingModel s (Light ms) p =
-  if pointIsLit then <*^> (round $ 255 *  lambert (vecNeg (normalize ms)) p) else (0,0,0, max ( round $ 255 * reflect * 0.5) 0)
+lightingModel :: Scene -> Light -> Ray -> Colour -> Colour
+lightingModel s (Light ms amb) p c = c <*^> (amb + 
+  if pointIsLit then  (1-amb) * lambert (vecNeg (normalize ms)) p 
+                else  (1-amb)/3 * max reflect 0 
+              )
     where
       pointIsLit :: Bool -- is the point p visible from light ? 
       pointIsLit = null $ objectIntersects (Ray (pos p) ms)
@@ -136,24 +135,25 @@ instance HasPosition a => HasPosition (a,b) where
 
 
 -- now calculate the light
-showScene :: Scene -> Light -> Int -> [[Ray]] -> [[Cmyk]]
+showScene :: Scene -> Light -> Int -> [[Ray]] -> [[Colour]]
 showScene s l d = map (map (showRay s l d))
 
 fromDouble :: Double -> Int
 fromDouble = round . (* 255)
 
-shade i = (0,0,0,i)
+shade i = i <^*> unit 
+
+
+type Trace = [(Ray, Ray, Surface)] -- incident ray, surface ray, Surface properties ie refraction index and local colour
 
 
 showRay :: Scene -> Light -> Int -> Ray -> Colour
 showRay s l depth r = let oi = map intersections (objects s) -- each objects results in a list of intersections
                           singleIO = minRay r (concat oi) -- from these we choose the upfront one
                       in case singleIO of
-                        Nothing         -> shade (fromDouble 0.75) -- the colour of the sky 
-                        Just (r', (ri, _))   -> if depth <= 0 then lightingModel s l r'
-                                           else (fromDouble ri, fromDouble ri, fromDouble ri , fromDouble ri)
-                                                  *
-                                                showRay s l (depth -1) (reflection (dir r) r') + quadruply (fromDouble $ 1-ri) * lightingModel s l r'
+                        Nothing               -> sky s 
+                        Just (r', (ri, c))    -> if depth <= 0 then lightingModel s l r' c
+                                                  else (ri <^*> showRay s l (depth -1) (reflection (dir r) r')) <> ((1-ri) <^*> lightingModel s l r' c)
                       where intersections :: Object -> [(Ray, Surface)] -- find intersection and stick reflectivity information to it
                             intersections (Object o face) = map (,face) (o `intersect`  r)
 
