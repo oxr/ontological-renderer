@@ -86,7 +86,7 @@ intersectPlane (Ray o n) (Ray ro rd)
 lightingModel :: Scene -> Light -> Ray -> Colour -> Colour
 lightingModel s (Light ms amb) p c = c <*^> (amb + 
   if pointIsLit then  (1-amb) * lambert (vecNeg (normalize ms)) p 
-                else  (1-amb)/3 * max reflect 0 
+                else  (1-amb)/3 * lambert ms p -- max reflect 0 
               )
     where
       pointIsLit :: Bool -- is the point p visible from light ? 
@@ -96,8 +96,9 @@ lightingModel s (Light ms amb) p c = c <*^> (amb +
                             (map (dot ms . (pos r <-> ) . pos) (concatMap ((`intersect` r) . shape) (objects s)))
       lambert :: Vec -> Ray -> Double
       lambert v (Ray _ d)  = min (normalize v `dot` normalize d) 1
-      reflect :: Double
-      reflect =  dir p `dot` ms
+                              -- this should also project the normal of the plane and adjust the colour by nearby surfaces
+                              -- for this I need to redefine intersect to be somehow more useful, to just give me a collision point   
+                              -- with all necessary info
 
 
 

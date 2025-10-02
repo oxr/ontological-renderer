@@ -56,3 +56,5 @@ depth cp = get cp "Image" "depth"
 ambience :: MonadError CPError m => ConfigParser -> m Double
 ambience cp = get cp "Light" "ambience"
 
+shake :: MonadError CPError m => ConfigParser -> m Bool
+shake cp = get cp "Image" "shake"
