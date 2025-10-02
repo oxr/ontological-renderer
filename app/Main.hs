@@ -84,7 +84,7 @@ main' cfg scene filename =
         jitterMap <- generateJitterMap (2*dx) (2*dy) jitters --(2*dx `div` pixelSize) (2*dy `div` pixelSize) jitters
         print "Rendering..."
         case filename of 
-            Nothing         -> putStrLn $ writeText (pixelRenderer dx dy f ps scene l d jitterMap sh) (2*dx) (2*dy)
+            Nothing         -> putStrLn $ writeCSV (pixelRenderer dx dy f ps scene l d jitterMap sh) (showCMYK8 . convertPixel) (2*dx) (2*dy)
             Just filename'  -> writePng filename' $ generateImage (pixelRenderer dx dy f ps scene l d jitterMap sh) (2*dx) (2*dy)
 
 
@@ -132,11 +132,19 @@ writeText pixelRenderer dx dy =
                         | y <- [0..2*dy-1],x <- [0..2*dx-1] ]
             in concat str
 
+writeCSV :: (Pixel a ) => (Int -> Int -> a) -> (a -> String) -> Int -> Int -> String
+writeCSV pixelRenderer sh dx dy = 
+    let xheader = "," ++ (concat [ show i ++ "," | i <- [0..dx]])++ "\n"
+        lines = [ show y ++ "," ++ (concat  [( "\"" ++ sh (pixelRenderer x y)) ++ "\"," | x <- [0..dx] ]) ++ "\n" | y <- [0..dy]] 
+    in xheader ++ concat lines
+
+
+
 showRGB8 :: PixelRGB8 -> String
 showRGB8 = show
 
 showCMYK8 :: PixelCMYK8 -> String
-showCMYK8 = show
+showCMYK8 (PixelCMYK8 c m y k)= "(" ++ show c ++ "," ++ show m ++ "," ++ show y ++ "," ++ show k ++ ")"
 
 
 transpose:: [[a]]->[[a]]
