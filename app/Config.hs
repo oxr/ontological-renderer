@@ -1,14 +1,30 @@
 {-# LANGUAGE FlexibleContexts #-}
-module Config where
+module Config (Config(..),config, configFile) where
 
 import Data.ConfigFile
 import Data.Either
 import Control.Monad.Except
 import Renderer (Cam(..))
 import Vector (Vec_(..), normalize)
-import Scene (Light(..))
+import Scene (Light(..), Colour)
 
 type ConfigFileMonad = ExceptT CPError IO
+
+-- type ConfigFileMonad = ExceptT CF.CPError IO
+
+data Config = Config { 
+    pixelSize :: Int , 
+    camera :: Cam, 
+    light :: Light,
+    scale :: Double,
+    scenedef :: String ,
+    antiAliasing :: Int ,
+    shake :: Bool, 
+    depth :: Int,
+    skyColour :: Colour ,
+    vx :: Int,
+    vy :: Int
+}
 
 
 configFile :: String -> ConfigFileMonad ConfigParser
@@ -16,45 +32,39 @@ configFile filename = do
                         cp <- join $ liftIO $ readfile emptyCP filename
                         return cp {accessfunc = interpolatingAccess 10}
 
-pixelSize :: MonadError CPError m => ConfigParser -> m  Int
-pixelSize cp = get cp "Image" "pixelsize"                
+config :: ConfigParser -> ConfigFileMonad Config
+config cp = do
+            ps <- get cp "Image" "pixelsize"
+            cam <- getCam cp
+            light <- getLight cp
+            scale <- get cp "Scene" "scale"
+            scene <- get cp  "Scene" "def"
+            (r,g,b) <- get cp "Scene" "sky"
+            let skyy = V r g b
+            aa <- get cp "Image" "aa"
+            sh <- get cp "Image" "shake"
+            depth <- get cp "Image" "depth"
+            amb <- get cp "Light" "ambience"
+            (sx, sy) <- getViewAngle cp
+            return $ Config ps cam light {ambient = amb} scale scene aa sh depth skyy sx sy
 
-image :: MonadError CPError m => ConfigParser -> m Cam
-image cp = do 
+getCam :: MonadError CPError m => ConfigParser -> m Cam
+getCam cp = do 
                 resx <- get cp "Image" "resx"
                 resy <- get cp "Image" "resy"
-                f    <- get cp "Image" "f"
-                return $ 
-                    Cam (V 0 0 0) (V 0 0 1) resx resy f 
+                f    <- get cp "Camera" "f"
+                return $ Cam (V 0 0 0) (V 0 0 1) resx resy f 
 
-light :: MonadError CPError m => ConfigParser -> m Light
-light cp = do
+getLight :: MonadError CPError m => ConfigParser -> m Light
+getLight cp = do
             lx <- get cp "Light" "lightx"
             ly <- get cp "Light" "lighty"
             lz <- get cp "Light" "lightz"
             amb <- get cp "Light" "ambience"
             return $ Light (normalize (V lx ly lz)) amb
 
-            
-scale :: MonadError CPError m => ConfigParser -> m Double
-scale cp = do 
-            get cp "Scene" "scale"
-
-scene :: MonadError CPError m => ConfigParser -> m String
-scene cp = get cp "Scene" "def"
-
-sky :: MonadError CPError m => ConfigParser -> m (Double,Double,Double)
-sky cp = get cp "Scene" "sky"
-
-
-antiAliasing :: MonadError CPError m => ConfigParser -> m Int
-antiAliasing cp = get cp "Image" "aa"
-
-depth :: MonadError CPError m => ConfigParser -> m Int
-depth cp = get cp "Image" "depth"
-
-ambience :: MonadError CPError m => ConfigParser -> m Double
-ambience cp = get cp "Light" "ambience"
-
-shake :: MonadError CPError m => ConfigParser -> m Bool
-shake cp = get cp "Image" "shake"
+getViewAngle :: MonadError CPError m => ConfigParser -> m (Int, Int)
+getViewAngle cp = do 
+                sx <- get cp "Camera" "vx"
+                sy <- get cp "Camera" "vy"
+                return (sx,sy)
