@@ -86,7 +86,7 @@ intersectPlane (Ray o n) (Ray ro rd)
 lightingModel :: Scene -> Light -> Ray -> Colour -> Colour
 lightingModel s (Light ms amb) p c = c <*^> (amb + 
   if pointIsLit then  (1-amb) * lambert (vecNeg (normalize ms)) p 
-                else  (1-amb)/3 * lambert ms p -- max reflect 0 
+                else  (1-amb)/3 * lambert (normalize ms) p -- max reflect 0 
               )
     where
       pointIsLit :: Bool -- is the point p visible from light ? 

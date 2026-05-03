@@ -14,35 +14,45 @@ import qualified Data.Vector as V
 import Data.Word (Word8)
 import Codec.Picture.Types
 import Config (Config(..), config, configFile)
-import Data.Char (readLitChar)
+import System.Exit (die)
+
 
 help :: [Char]
 help =  "usage: ontological-renderer <config file> <outputfile.png>\n" ++
         "see or.conf for further help."
 
 
-
 main :: IO ()
 main = do
-        args <- getArgs
-        if null args then putStrLn help
-        else do
-            x <- runExceptT $ do
-              cp <- configFile (args!!0)
-              config cp
-            case x of
-                Left e -> fail (show e)
-                Right cfg -> do
-                    case run parseScene (scenedef cfg) of
-                        [] -> fail "Invalid Scene syntax"
-                        (os ,_ ) : _ -> do
-                            let s' = Scene os (skyColour cfg)
-                            let scene = scaleScene (scale cfg / fromIntegral (pixelSize cfg)) s'
-                            let filename = if length args < 2 then Nothing else Just (args!!1)
-                            main' cfg scene filename
-                            -- controlLoop cfg scene filename
---                            (resolution_x c) (resolution_y c) (focalLength c) scene (light cfg) (pixelSize cfg) (abs $ antiAliasing cfg) (antiAliasing cfg < 0) (depth cfg) filename
-    where 
+    args <- getArgs
+    case args of
+        [] -> putStrLn help
+        configPath : rest -> do
+            cfg <- loadConfig configPath
+            scene <- buildScene cfg
+            let filename = case rest of
+                    []    -> Nothing
+                    x : _ -> Just x
+            renderScene cfg scene filename
+
+loadConfig :: FilePath -> IO Config
+loadConfig path = do
+    result <- runExceptT $ do
+        cp <- configFile path
+        config cp
+    case result of
+        Left e    -> die (show e)
+        Right cfg -> pure cfg
+
+buildScene :: Config -> IO Scene
+buildScene cfg =
+    case run parseScene (scenedef cfg) of
+        [] -> die "Invalid Scene syntax"
+        (os, _) : _ ->
+            let rawScene = Scene os (skyColour cfg)
+                scaledScene = scaleScene (scale cfg / fromIntegral (pixelSize cfg)) rawScene
+            in pure scaledScene
+{-            
         controlLoop :: Config -> Scene -> Maybe String -> IO ()
         controlLoop cfg scene filename = do 
             main' cfg scene filename
@@ -54,11 +64,11 @@ main = do
                 'q' -> do 
                     putStrLn "done."
                 _ -> controlLoop cfg scene filename
-
+-}
 
 --main' :: Int -> Int -> Int -> Scene -> Light -> Int -> Int -> Bool -> Int -> Maybe String -> IO ()
-main' :: Config -> Scene -> Maybe String -> IO ()
-main' cfg scene filename =
+renderScene :: Config -> Scene -> Maybe String -> IO ()
+renderScene cfg scene filename =
     let dx = resolution_x (camera cfg)
         dy = resolution_y (camera cfg)
         jitters = antiAliasing cfg
@@ -76,33 +86,34 @@ main' cfg scene filename =
 type JitterMap = V.Vector (V.Vector (V.Vector (Double, Double)))
 
 generateJitterMap :: Int -> Int -> Int -> IO JitterMap
-generateJitterMap dx dy spp = do
-                                let jitters = rollDice spp
-                                let line  = V.replicateM dy jitters
-                                let matx =  V.replicateM dx line
-                                matx
---    return ( V.replicateM dy (V.replicateM dx (rollDice spp)))
+generateJitterMap dx dy spp = 
+        V.replicateM dx (V.replicateM dy (rollDice spp))
     where rollDice :: Int -> IO (V.Vector (Double,Double)) -- rollDice n-times 
           rollDice n = V.replicateM n roll1Dice
           roll1Dice :: IO (Double, Double)
           roll1Dice = do
-                        jx <- applyAtomicGen (uniformR (-0.5, 0.5)) globalStdGen
-                        jy <- applyAtomicGen (uniformR (-0.5, 0.5)) globalStdGen
-                        return (jx,jy)
+                jx <- applyAtomicGen (uniformR (-0.5, 0.5)) globalStdGen
+                jy <- applyAtomicGen (uniformR (-0.5, 0.5)) globalStdGen
+                return (jx,jy)
 
 pixelRenderer :: Config -> Scene -> JitterMap -> Int -> Int -> PixelRGB8
 pixelRenderer cfg scene jitterMap x y = -- pixelation is simply div - going from a high resolution to a lower one by repetition of the same value 
         let rx = resolution_x (camera cfg)
             ry = resolution_y (camera cfg)
-            dx' = rx `div` pixelSize cfg
-            dy' = ry `div` pixelSize cfg
-            x' =  x  `div` pixelSize cfg
-            y' =  y  `div` pixelSize cfg
+            ps = pixelSize cfg
+            dx' = rx `div` ps
+            dy' = ry `div` ps
+            x' =  x  `div` ps
+            y' =  y  `div` ps
             stepx = fromIntegral (vx cfg) / fromIntegral dx'
             stepy = fromIntegral (vy cfg) / fromIntegral dy'
             f = focalLength (camera cfg)
             jitters = jitterMap V.! (if shake cfg then x else x') V.! (if shake cfg then y else y') -- using x , y instead of x', y' makes the pixels jump 
-            rays' = V.map (\(jx,jy) -> showRay scene (light cfg) (depth cfg) (Ray (V 0 0 0) (V ((fromIntegral (x' - dx') + jx ) * stepx)  ((fromIntegral (y' - dy') + jy) * stepy) (fromIntegral (f `div` pixelSize cfg))))) jitters
+            rays' = V.map (\(jx,jy) -> showRay 
+                                            scene 
+                                            (light cfg) 
+                                            (depth cfg) 
+                                            (Ray (V 0 0 0) (V ((fromIntegral (x' - dx') + jx ) * stepx)  ((fromIntegral (y' - dy') + jy) * stepy) (fromIntegral (f `div` ps))))) jitters
             avgrays = foldr (<+>) (V 0 0 0) rays' </^> fromIntegral (length rays')
         in
             pixelFromDouble avgrays
